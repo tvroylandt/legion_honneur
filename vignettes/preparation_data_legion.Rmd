@@ -288,15 +288,7 @@ df_legion_1 <- df_legion_0 %>%
     -organization,
     -date1,
     -date2,
-    -annees_bonification,
-    # a conserver par la suite
-    -nom,
-    -prenom,
-    -nom_alternatif,
-    -autres_prenoms,
-    -mois,
-    -semaine,
-    -jour
+    -annees_bonification
   )
 ``` 
 
@@ -450,7 +442,14 @@ df_legion_4 <- df_legion_3 %>%
     nb_ans = str_extract(V11, "(\\w+)\\s+ans"),
     nb_ans = str_remove(nb_ans, " ans"),
     annees_service = if_else(is.na(annees_service), nb_ans, annees_service),
-    annees_service = as.numeric(annees_service)
+    annees_service = as.numeric(annees_service),
+    annees_service = if_else(
+      is.na(annees_service),
+      trunc(as.numeric(
+        source_date - as_date(grade_precedent_date)
+      ) / 365) + 1,
+      annees_service
+    )
   ) %>%
   select(-nb_ans)
 ```
@@ -593,24 +592,31 @@ df_legion_6 <- df_legion_5 %>%
   )
 ```
 
-### Promotions
-
-On vérifie que dans le cas où ce n'est pas une nomination au grade de chevalier, on a des informations sur la date précédente ou qu'on peut rattacher à une autre décision.
-
-```{r promotion}
-df_legion_7 <- df_legion_6
-```
-
-## Mise en forme au format carrière
-
 ## Export
 
+On sélectionne les colonnes et on exporte.
 
-## TO DO
+```{r export}
+df_legion_fin <- df_legion_6 %>%
+  rename(comment = V11) %>%
+  select(
+    nom_complet,
+    sexe,
+    source_date,
+    source_id,
+    comment,
+    grade,
+    ind_militaire,
+    an,
+    mois,
+    semaine,
+    jour,
+    mois_jour,
+    nomme_par_r,
+    grade_armee,
+    ind_medaille_militaire,
+    motif_nomination
+  )
 
-+ motif de la nomination (analyse textuelle ?)
-+ format de la table pour les carrières
-+ date de précédente nomination - on doit avoir pour la majorité des officiers et plus un évènement ou une date précédente.
-
-
-
+write_rds(df_legion_fin, here("data/df_legion_clean.rds"))
+```
