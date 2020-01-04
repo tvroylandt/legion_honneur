@@ -19,6 +19,10 @@ library(magrittr)
 library(rvest)
 library(lubridate)
 library(here)
+library(tidytext)
+library(widyr)
+library(proustr)
+library(DT)
 
 # Pour transformer les NULL en NA et éviter l'erreur du flatten
 null_na <- function(x) {
@@ -117,9 +121,11 @@ df_legion_0 <- read_rds(here("data/df_legion_init.rds")) %>%
            year(as_date(source_date)) >= 2000)
 ```
 
+De façon général, on fait confiance aux variables déjà codées. Les vérifications montrent qu'elles sont plutôt bonnes. On les complètent quand c'est nécessaire mais on ne revient pas sur l'information existante.
+
 ### Statut militaire
 
-On va chercher à déterminer qui sont les militaires. Pour cela on se fonde sur une liste des armes, qu'on cherche ensuite à détecter, de même que l'apparition du mot "militaire" dans la description.
+On va chercher à déterminer qui sont les militaires. Pour cela on se fonde sur une liste des armes, qu'on cherche ensuite à détecter ainsi que par rapport aux grades courants, de même que l'apparition du mot "militaire" dans la description.
 
 Une fois cela fait, on part du principe que :
 
@@ -157,6 +163,12 @@ l_armees <- c("armee de terre",
               "anciens combattants",
               "anciens combattants - résistants")
 
+# liste des grades
+l_grades <-
+  c(
+    "colonel|commandant|capitaine|commandant|escadron|bataillon|amiral|soldat|matelot|quartier-maître|quartier-maitre|quartier maitre|caporal|brigadier|garde|chasseur|spahi|artilleur|légionnaire|legionnaire|canonnier|cavalier|cuirassé|aspirant|lieutenant|capitaine|adjudant|sergent|gendarme|aspirant|major|maréchal|chef de section"
+  )
+
 # verif correspondance texte - liste des armes
 df_legion_mili_1 <- df_legion_0 %>% 
   mutate_at(vars(starts_with("text")), str_to_lower) %>% 
@@ -180,6 +192,16 @@ df_legion_mili_1 <- df_legion_0 %>%
                                str_detect(text7, "militaire") ~ "1",
                                str_detect(text8, "militaire") ~ "1",
                                str_detect(organization, "militaire") ~ "1",
+                               str_detect(V11, l_grades) ~ "1",
+                               str_detect(text, l_grades) ~ "1",
+                               str_detect(text1, l_grades) ~ "1",
+                               str_detect(text2, l_grades) ~ "1",
+                               str_detect(text3, l_grades) ~ "1",
+                               str_detect(text4, l_grades) ~ "1",
+                               str_detect(text5, l_grades) ~ "1",
+                               str_detect(text6, l_grades) ~ "1",
+                               str_detect(text7, l_grades) ~ "1",
+                               str_detect(text8, l_grades) ~ "1",
                                TRUE ~ "0"))
 
 # tous les ID avec + de 50% de militaire sont considérées militaire, sinon civil
@@ -266,6 +288,7 @@ df_legion_1 <- df_legion_0 %>%
     -organization,
     -date1,
     -date2,
+    -annees_bonification,
     # a conserver par la suite
     -nom,
     -prenom,
@@ -354,7 +377,7 @@ detect_grade_armee <- function(x) {
     str_detect(x, "général|amiral") ~ "officiers généraux",
     str_detect(
       x,
-      "soldat|matelot|quartier-maître|quartier maître|quariter-maitre|quartier maitre|caporal|brigadier|garde|chasseur|spahi|artilleur|légionnaire|legionnaire|canonnier|cavalier|cuirassé"
+      "soldat|matelot|quartier-maître|quartier maître|quartier-maitre|quartier maitre|caporal|brigadier|garde|chasseur|spahi|artilleur|légionnaire|legionnaire|canonnier|cavalier|cuirassé"
     ) ~ "militaires du rang",
     str_detect(
       x,
@@ -417,38 +440,177 @@ df_legion_3 <- df_legion_2 %>%
   select(-text1,-text2,-text3)
 ```
 
+### Années de service
 
-### Trash
+On va chercher les années de service avec une regex pour ceux qui ne l'ont pas. On n'a globalement les années de service que pour les chevaliers. Pour les autres grades, il faut calculer par rapport à la date de nomination précédente.
 
-```{r trash, eval = FALSE}
-
-df_legion_3
-
-# extraction dit nom
-aa <- df_legion_propre %>% 
-  select(V11, annees_service) %>% 
-  separate(V11, into = c("a", "b", "c"), sep = ";") %>% 
-  mutate_at(vars(a, b, c), str_trim) %>% 
-  mutate(dit = str_sub(a, 1, 3) == "dit",
-         dit_nom = if_else(dit == TRUE, str_extract(a, "^(.+?),"), ""),
-         dit_nom = if_else(dit == TRUE & is.na(dit_nom), a, dit_nom),
-         dit_nom = str_remove(dit_nom, ","),
-         dit_nom = str_remove(dit_nom, "dit "),
-         dit_nom = str_remove(dit_nom, "dite "))
+```{r annees_service}
+df_legion_4 <- df_legion_3 %>%
+  mutate(
+    nb_ans = str_extract(V11, "(\\w+)\\s+ans"),
+    nb_ans = str_remove(nb_ans, " ans"),
+    annees_service = if_else(is.na(annees_service), nb_ans, annees_service),
+    annees_service = as.numeric(annees_service)
+  ) %>%
+  select(-nb_ans)
 ```
+
+### Compléter le nom
+
+On ajoute le surnom ("dit XXX") à partir du texte libre.
+
+```{r dit_nom}
+df_legion_5 <- df_legion_4 %>%
+  mutate(
+    dit = str_sub(V11, 1, 3) == "dit",
+    dit_nom = if_else(dit == TRUE, str_extract(V11, "^(.+?),"), ""),
+    dit_nom = if_else(dit == TRUE &
+                        is.na(dit_nom), V11, dit_nom),
+    dit_nom = str_remove(dit_nom, ","),
+    dit_nom = str_remove(dit_nom, "dit "),
+    dit_nom = str_remove(dit_nom, "dite ")
+  )
+```
+
+### Motif de nomination
+
+L'analyse des motifs de nomination passe par une analyse textuelle des mots les plus présents. Pour cela, on effectue un comptage simple et un comptage par paires des informations présentes dans le commentaire.
+
+On n'analyse que les motifs pour les non-militaires.
+
+```{r analyse_textuelle}
+# stopwords
+stop_perso <- tibble(word = c("services", "ancien", "ancienne", "ans", "chevalier", 
+                              "officier", "croix", "grand", "commandeur", "janvier",
+                              "février", "mars", "avril", "mai", "juin", "juillet",
+                              "août", "septembre", "octobre", "novembre", "décembre",
+                              "activités", "professionnelles"))
+
+stopwords_legion <- bind_rows(proust_stopwords(),
+                              stop_perso)
+
+# Comptage simple
+count_comment <- df_legion_5 %>%
+  filter(ind_militaire == "0") %>%
+  unnest_tokens(word, V11) %>% 
+  mutate(word = str_remove(word, "d'")) %>% 
+  filter(!word %in% stopwords_legion$word &
+           !str_detect(word, "0|1|2|3|4|5|6|7|8|9"))%>%
+  group_by(word) %>%
+  count() %>%
+  arrange(desc(n))
+
+datatable(count_comment)
+
+# Comptage des paires
+count_comment2 <- df_legion_5 %>%
+  filter(ind_militaire == "0") %>%
+  unnest_tokens(word, V11, token = "ngrams", n = 2) %>% 
+  mutate(word = str_remove(word, "d'")) %>% 
+  separate(word, c("word1", "word2"), sep = " ") %>%
+  filter(!word1 %in% stopwords_legion$word,
+         !word2 %in% stopwords_legion$word) %>%
+  group_by(word1, word2) %>%
+  count() %>%
+  arrange(desc(n)) %>% 
+  head(2000)
+
+datatable(count_comment2)
+```
+
+On se sert ensuite de cette analyse pour recoder une partie des motifs. La classification est évidemment incomplète et imparfaite, mais elle permet un approche meilleure qu'une simple analyse textuelle.
+
+```{r motif}
+df_legion_6 <- df_legion_5 %>%
+  mutate(
+    motif_nomination = case_when(
+      ind_militaire == "1" ~ "militaire",
+      str_detect(V11, "nationalité") ~ "étranger",
+      # entreprise
+      str_detect(V11, "chef|dirigeant|direct|président|administrat") &
+        str_detect(
+          V11,
+          "société|général|entreprise|industriel|groupe|établissement|surveillance"
+        ) ~ "directeur de société",
+      str_detect(V11, "banque|pharmaceutique") ~ "directeur de société",
+      # agricole
+      str_detect(V11, "agricole") ~ "milieu agricole",
+      # sport
+      str_detect(V11, "médaill|jeux") &
+        str_detect(V11, "or|argent|bronze|olympique|paralympique") ~ "sportif",
+      str_detect(
+        V11,
+        "football|rugby|handball|tennis|aviron|escrime|boxe|judo|karaté|athlétisme|fédération française|sport"
+      ) ~ "sportif",
+      # associations
+      str_detect(
+        V11,
+        "syndica|conseil économique|métier|professionnel|tourisme|fédération|associa|président fondateur|présidente fondatrice|président d'honneur|présidente d'honneur|mutuel|allocation|en faveur|fondation|sécurité civil|sauvetage"
+      ) ~ "association/syndicat/organisation professionnelle|pompier",
+      str_detect(V11, "chambre") &
+        str_detect(V11, "commerce|industrie|artisan") ~ "association/syndicat/organisation professionnelle",
+      # professions libérales
+      str_detect(V11, "avocat|huissier") ~ "avocat/huissier",
+      str_detect(V11, "comptable|notaire|architecte") ~ "comptable/notaire/architecte",
+      str_detect(V11, "journaliste|écrivain|éditrice|édition|éditeur|belles lettres") ~ "journaliste/écrivain/édition",
+      # artiste/culture
+      str_detect(
+        V11,
+        "artiste|auteur|compositeur|interprète|orchestre|musée|patrimo|comédie|culture|conservat"
+      ) ~ "artiste/culture/patrimoine",
+      # élu
+      str_detect(
+        V11,
+        "maire|agglomération|commune|électi|ministre|député|sénat|assemblée|parlement"
+      ) ~ "élu",
+      str_detect(V11, "conseil") &
+        str_detect(V11,
+                   "municipal|région|général|département") ~ "élu",
+      # université
+      str_detect(
+        V11,
+        "universit|cherche|professeur|directeur d'étude|directrice d'étude|éducation|formation|école|collège|lycée|chef d'établissement|enseignant|conférence|académie"
+      ) ~ "universitaire/éducation/formation/recherche",
+      # religion
+      str_detect(
+        V11,
+        "ecclésiastique|religi|cardinal|évêque|prêtre|rabbin|pasteur|imam|église|consistoire|islam|cultuel|evêque|abbé|père|vicaire|diocèse|catholique"
+      ) ~ "religion",
+      # fonction publique
+      str_detect(
+        V11,
+        "préfe|ambassad|sous-direct|inspect|finance|publique|public|administr|contrôl|payeur|consul|minist|ingénieur général|contractuel|commissaire général|cour d'appel|grande instance|tribunal|juge|judiciaire|cassation|ville|mairie|atomique|police|commissaire"
+      ) ~ "fonction publique",
+      str_detect(V11, "conseil")  &
+        str_detect(V11, "etat|état|honoraire|compte|maître|maitre|technique") ~ "fonction publique",
+      str_detect(V11, "direct|chambre") &
+        str_detect(V11, "région|département") ~ "fonction publique",
+       # résistant
+      str_detect(V11, "combattant|résistan") ~ "résistant/anciens combattants",
+      # médical
+      str_detect(V11, "hôpital|hospitali|médecin|dentiste|social") ~ "monde médico-social"
+    )
+  )
+```
+
+### Promotions
+
+On vérifie que dans le cas où ce n'est pas une nomination au grade de chevalier, on a des informations sur la date précédente ou qu'on peut rattacher à une autre décision.
+
+```{r promotion}
+df_legion_7 <- df_legion_6
+```
+
+## Mise en forme au format carrière
+
+## Export
+
 
 ## TO DO
 
-
 + motif de la nomination (analyse textuelle ?)
-+ dit nom à intégrer
-+ années de service à vérifier
 + format de la table pour les carrières
-
-En dehors des recodages de variables existantes, l'enjeu consiste à :
-
-+ utiliser le texte libre pour valider et compléter les informations ;
-+ recoder ce texte libre pour obtenir les métiers.
++ date de précédente nomination - on doit avoir pour la majorité des officiers et plus un évènement ou une date précédente.
 
 
 
