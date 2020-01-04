@@ -13,3 +13,386 @@ knitr::opts_chunk$set(
 )
 ```
 
+```{r packages}
+library(tidyverse)
+library(magrittr)
+library(rvest)
+library(lubridate)
+library(here)
+
+# Pour transformer les NULL en NA et éviter l'erreur du flatten
+null_na <- function(x) {
+  ifelse(is.null(x), NA, x)
+}
+```
+
+## Mise en forme du XML
+
+Les données sont tirées de https://jorfsearch.steinertriples.fr/tag/legion_honneur.
+
+On charge le fichier, qu'on passe ensuite en liste. Différents blocs servent alors à lire les attributs et le contenu, qu'on assemble ensuite. On sauvegarde alors le fichier.
+
+```{r clean_xml, eval = FALSE}
+# Import XML
+x <-
+  read_xml(here("data/legion honneur.xml"))
+
+# En liste
+xml_list <- x %>%
+  xml_find_all("result") %>%
+  map(as_list)
+
+# Lire les attributs du décret
+df_attr <- xml_list %>%
+  map(attributes) %>%
+  map_dfr(flatten_dfc) %>%
+  select(-V1,-V2)
+
+# Lire les noms
+df_noms <- xml_list %>% 
+  map(use_series, person) %>% 
+  map(use_series, name) %>% 
+  map(attributes) %>% 
+  map(lapply, null_na) %>% 
+  map(flatten_dfc) %>% 
+  map_if(function(x)is_tibble(x) == FALSE,
+         function(x)tibble(na = "0000")) %>% 
+  bind_rows()
+
+df_noms_text <- xml_list %>% 
+  map(use_series, person) %>% 
+  map(use_series, name) %>% 
+  map(lapply, null_na) %>% 
+  map(flatten_dfc) %>% 
+  map_if(function(x)is_tibble(x) == FALSE,
+         function(x)tibble(na = "0000")) %>% 
+  bind_rows()
+
+# Lire les raisons
+df_raisons <- xml_list %>% 
+  map(use_series, person) %>% 
+  map(use_series, text) %>% 
+  map(lapply, null_na) %>% 
+  map(flatten_dfc) %>% 
+  map_if(function(x)is_tibble(x) == FALSE,
+         function(x)tibble(na = "0000")) %>% 
+  bind_rows()
+
+# Lire le texte
+df_text <- xml_list %>% 
+  map(use_series, object) %>% 
+  map(lapply, null_na) %>% 
+  map(flatten_dfc) %>% 
+  map_if(function(x)is_tibble(x) == FALSE,
+         function(x)tibble(na = "0000")) %>% 
+  bind_rows()
+
+# Fusion
+df_legion <- df_noms %>%
+  bind_cols(df_noms_text) %>% 
+  bind_cols(df_raisons) %>%
+  bind_cols(df_text) %>%
+  bind_cols(df_attr) %>% 
+  select(-starts_with("na"))
+
+# Sauvegarde
+write_rds(df_legion, here("data/df_legion_init.rds"))
+```
+
+## Recodage de la table
+
+La table est importée et filtrée pour enlever :
+
++ les médaillés militaires inclus à tort ;
++ les médaillés de l'ordre du mérite, idem ;
++ les médaillés de la médaille de reconnaissance aux victimes du terrorisme, idem.
+
+Leur inclusion à tort est due au fait que ces décorations sont gérées par la chancellerie de la Légion d'honneur et que la construction des tags peut les inclure. On fait confiance aux tags complémentaires pour les filtres.
+
+```{r import_filtre}
+df_legion <- read_rds(here("data/df_legion_init.rds")) %>% 
+  filter(is.na(medaille_militaire) & 
+           is.na(ordre_merite) & 
+           !str_detect(text, "terrorisme") &
+           year(as_date(source_date)) >= 2000)
+```
+
+### Statut militaire
+
+On va chercher à déterminer qui sont les militaires. Pour cela on se fonde sur une liste des armes, qu'on cherche ensuite à détecter, de même que l'apparition du mot "militaire" dans la description.
+
+Une fois cela fait, on part du principe que :
+
++ quand il y a un décret de nomination/promotion pour des militaires, il leur est propre ;
++ il n'y a pas de décret le même jour pour des militaires et des civils.
+
+Cela semble correct au vu des quelques observations.
+
+On va alors mettre en place une règle pour classer toutes les nominations/promotions de ces décrets puis de ces journées comme militaire, à partir du moment où on détecte initialement 50 % de militaires dedans.
+
+Cette procédure peut parfois en laisser de côté ou en inclure à tort, mais elle semble efficace.
+
+```{r ind_militaire}
+# liste des armes
+l_armees <- c("armee de terre",
+              "armée de terre",
+              "armee de l'air",
+              "armée de l'air",
+              "armée de l'air / officier",
+              "marine nationale",
+              "gendarmerie nationale",       
+              "gendarmerie",
+              "delegation generale pour l'armement",
+              "délégation générale pour l'armement",
+              "direction générale de l'armement",
+              "service du commissariat des armées",
+              "service d'infrastructure de la défense",
+              "service de sante des armees",     
+              "service de santé des armées",  
+              "controle general des armees",
+              "contrôle général des armées",
+              "service des essences des armees",
+              "service des essences des armées",
+              "justice militaire",
+              "anciens combattants",
+              "anciens combattants - résistants")
+
+# verif correspondance texte - liste des armes
+df_legion_mili_0 <- df_legion %>% 
+  mutate_at(vars(starts_with("text")), str_to_lower) %>% 
+  mutate(militaire = case_when(text %in% l_armees ~ "1",
+                               text1 %in% l_armees ~ "1",
+                               text2 %in% l_armees ~ "1",
+                               text3 %in% l_armees ~ "1",
+                               text4 %in% l_armees ~ "1",
+                               text5 %in% l_armees ~ "1",
+                               text6 %in% l_armees ~ "1",
+                               text7 %in% l_armees ~ "1",
+                               text8 %in% l_armees ~ "1",
+                               str_detect(text, "militaire") ~ "1",
+                               str_detect(text1, "militaire") ~ "1",
+                               str_detect(text2, "militaire") ~ "1",
+                               str_detect(text3, "militaire") ~ "1",
+                               str_detect(text4, "militaire") ~ "1",
+                               str_detect(text5, "militaire") ~ "1",
+                               str_detect(text6, "militaire") ~ "1",
+                               str_detect(text7, "militaire") ~ "1",
+                               str_detect(text8, "militaire") ~ "1",
+                               TRUE ~ "0"))
+
+# tous les ID avec + de 50% de militaire sont considérées militaire, sinon civil
+jorf_militaire_id <- df_legion_mili_0 %>%
+  group_by(source_id, militaire) %>%
+  count() %>%
+  pivot_wider(
+    names_from = militaire,
+    values_from = n,
+    values_fill = list(n = 0)
+  ) %>%
+  mutate(perc = (`1` / (`1` + `0`) * 100)) %>%
+  filter(perc >= 50) %>%
+  pull(source_id)
+
+df_legion_mili_1 <- df_legion_mili_0 %>% 
+  mutate(militaire = if_else(source_id %in% jorf_militaire_id, "1", "0"))
+
+# pareil avec les dates à 50% ou plus
+jorf_militaire_date <- df_legion_mili_1 %>% 
+  group_by(source_date, militaire) %>% 
+  count() %>% 
+  pivot_wider(
+    names_from = militaire,
+    values_from = n,
+    values_fill = list(n = 0)
+  ) %>%
+  mutate(perc = (`1` / (`1` + `0`) * 100)) %>% 
+  filter(perc >= 50) %>% 
+  pull(source_date)
+```
+
+### Grades et date
+
+On cherche ensuite à mettre en forme les dates, ainsi que les grades où quelques corrections minimes sont à faire.
+
+```{r date_grades}
+df_legion_1 <- df_legion %>%
+  rename(nom_complet = V1) %>%
+  mutate(
+    source_date = as_date(source_date),
+    militaire = if_else(source_date %in% jorf_militaire_date, "1", "0"),
+    an = year(source_date),
+    mois = month(source_date),
+    semaine = week(source_date),
+    jour = day(source_date),
+    mois_jour = paste(mois, jour, sep = "-"),
+    grade = fct_collapse(
+      grade,
+      "Chevalier" = c(
+        "Chevalier",
+        "Chevalier à titre posthume",
+        "Chevalier avec effet du",
+        "Chevalier de la Légion d'honneur"
+      ),
+      "Officier" = c("Officier", "Officier de la Légion d'honneur"),
+      "Commandeur" = c("Commandeur",
+                       "COMMANDEUR",
+                       "Commmandeur"),
+      "Grand officier" = "Grand officier",
+      "Grand'croix" = c("Grand'croix")
+    ),
+    grade_precedent = fct_collapse(grade_precedent,
+                                   "Chevalier" = c("Chevalier", "Chevalière"))
+  ) %>%
+  select(
+    -corps,
+    -magistrat,
+    -reference_juridique,
+    -birthplace,
+    -birthdate,
+    -source_name,-legion_honneur,
+    -medaille_militaire,
+    -ordre_merite
+  )
+``` 
+
+### Autorité de nomination
+
+On va construire une liste d'autorité de nominations à partir de la détection de mots-clés, qu'on va prendre séquentiellement. Cela correspond globalement aux différents noms des ministères sur la période. Toutefois, les attributions sont parfois mouvantes (travail et solidarités séparés ou ensemble par exemple) et oblige à quelques regroupements.
+
+```{r nomme_par}
+df_legion_2 <- df_legion_1 %>%
+  mutate(
+    nomme_par_r = case_when(
+      str_detect(nomme_par, "agriculture") ~ "Ministère de l'agriculture",
+      str_detect(nomme_par, "écolo") ~ "Ministère de l'environnement",
+      str_detect(nomme_par, "environnement") ~ "Ministère de l'environnement",
+      str_detect(nomme_par, "éducation nationale") ~ "Ministère de l'éducation nationale",
+      str_detect(nomme_par, "enseignement supérieur") ~ "Ministère de l'enseignement supérieur",
+      str_detect(nomme_par, "recherche") ~ "Ministère de l'enseignement supérieur",
+      str_detect(nomme_par, "affaires étrangères") ~ "Ministère des affaires étrangères",
+      str_detect(nomme_par, "coopération") ~ "Ministère des affaires étrangères",
+      str_detect(nomme_par, "économie") ~ "Ministère de l'économie et du budget",
+      str_detect(nomme_par, "budget") ~ "Ministère de l'économie et du budget",
+      str_detect(nomme_par, "industrie") ~ "Ministère de l'économie et du budget",
+      str_detect(nomme_par, "entreprise") ~ "Ministère de l'économie et du budget",
+      str_detect(nomme_par, "finance") ~ "Ministère de l'économie et du budget",
+      str_detect(nomme_par, "producti") ~ "Ministère de l'économie et du budget",
+      str_detect(nomme_par, "compte") ~ "Ministère de l'économie et du budget",
+      str_detect(nomme_par, "commerce") ~ "Ministère de l'économie et du budget",
+      str_detect(nomme_par, "tourisme") ~ "Ministère de l'économie et du budget",
+      str_detect(nomme_par, "fonction publique") ~ "Ministère de la fonction publique",
+      str_detect(nomme_par, "défense") ~ "Ministère de la défense et des anciens combattants",
+      str_detect(nomme_par, "armée") ~ "Ministère de la défense et des anciens combattants",
+      str_detect(nomme_par, "combattant") ~ "Ministère de la défense et des anciens combattants",
+      str_detect(nomme_par, "culture") ~ "Ministère de la culture",
+      str_detect(nomme_par, "justice") ~ "Ministère de la justice",
+      str_detect(nomme_par, "intérieur") ~ "Ministère de l'intérieur",
+      str_detect(nomme_par, "immigration") ~ "Ministère de l'intérieur",
+      str_detect(nomme_par, "Ministère du travail") ~ "Ministère du travail",
+      str_detect(nomme_par, "santé") ~ "Ministère de la santé et des affaires sociales",
+      str_detect(nomme_par, "solidarité") ~ "Ministère de la santé et des affaires sociales",
+      str_detect(nomme_par, "famille") ~ "Ministère de la santé et des affaires sociales",
+      str_detect(nomme_par, "femme") ~ "Ministère de la santé et des affaires sociales",
+      str_detect(nomme_par, "égalité") ~ "Ministère de la santé et des affaires sociales",
+      str_detect(nomme_par, "travail") ~ "Ministère du travail",
+      str_detect(nomme_par, "emploi") ~ "Ministère du travail",
+      str_detect(nomme_par, "affaires sociales") ~ "Ministère de la santé et des affaires sociales",
+      str_detect(nomme_par, "sport") ~ "Ministère du sport",
+      str_detect(nomme_par, "outre-mer") ~ "Ministère de l'outre-mer",
+      str_detect(nomme_par, "aménagement du territoire") ~ "Ministère du logement et des territoires",
+      str_detect(nomme_par, "territoire") ~ "Ministère du logement et des territoires",
+      str_detect(nomme_par, "ville") ~ "Ministère du logement et des territoires",
+      str_detect(nomme_par, "logement") ~ "Ministère du logement et des territoires",
+      str_detect(nomme_par, "équipement") ~ "Ministère des transports",
+      str_detect(nomme_par, "transport") ~ "Ministère des transports",
+      str_detect(nomme_par, "communication") ~ "Ministère des transports",
+      TRUE ~ as.character(nomme_par)
+    ),
+    nomme_par_r = fct_collapse(
+      nomme_par_r,
+      "Grande chancellerie de la Légion d'honneur" = c(
+        "Grande chancellerie de la Légion d'honneur",
+        "GRANDE CHANCELLERIE DE LA LÉGION D'HONNEUR"
+      ),
+      "Premier ministre" = c(
+        "Premier ministre",
+        "PREMIER MINISTRE",
+        "Ministère auprès du Premier ministre, chargé de la mise en œuvre du plan de relance"
+      )
+    )
+  )
+```
+
+### Trash
+
+```{r trash, eval = FALSE}
+# extraction dit nom
+aa <- df_legion_propre %>% 
+  select(V11, annees_service) %>% 
+  separate(V11, into = c("a", "b", "c"), sep = ";") %>% 
+  mutate_at(vars(a, b, c), str_trim) %>% 
+  mutate(dit = str_sub(a, 1, 3) == "dit",
+         dit_nom = if_else(dit == TRUE, str_extract(a, "^(.+?),"), ""),
+         dit_nom = if_else(dit == TRUE & is.na(dit_nom), a, dit_nom),
+         dit_nom = str_remove(dit_nom, ","),
+         dit_nom = str_remove(dit_nom, "dit "),
+         dit_nom = str_remove(dit_nom, "dite "))
+
+
+
+bb <- aa %>%
+  mutate(
+    a = str_remove(a, ". Cité"),
+    a = str_remove(a, ". Blessé"),
+    a = str_remove(a, ", infanterie"),
+    a = str_remove(a, ", troupes de marine"),
+    a = str_remove(a, ", artillerie"),
+    a = str_remove(a, ", génie"),
+    a = str_remove(a, ", matériel"),
+    a = str_remove(a, ", transmissions"),
+    a = str_remove(a, ", arme blindée et cavalerie"),
+    a = str_remove(a, ", groupe de spécialités état-major"),
+    a = str_remove(a, ", légion étrangère"),
+    a = str_remove(a, ", train"),
+    a = str_remove(a, ", service de santé"),
+    a = str_remove(a, ", cadre spécial"),
+    a = str_remove(a, "de 1re classe"),
+    a = str_remove(a, "de 2de classe"),
+    a = str_remove(a, "et cité"),
+    ind_armee = case_when(str_detect(
+      a,
+      c(
+        "major|soldat|adjudant|lieutenant|colonel|gendarme|caporal|sergent|capitaine|maréchal|brigadier|canonnier|maître|bataillon|chasseur|escadron|tirailleur|légionnaire"
+      )
+    ) ~ TRUE),
+    grade_armee = if_else(ind_armee == TRUE, a, ""),
+    a = case_when(
+      ind_armee == TRUE ~  "militaire",
+      str_detect(a, "avocat") ~ "avocat",
+      str_detect(a, "résistant") ~ "résistant",
+      str_detect(a, "ministre") ~ "ministre",
+      str_detect(a, "artiste") ~ "artiste",
+      str_detect(a, "militaire") ~ "militaire",
+      str_detect(a, "direct") &
+        str_detect(a, "société") ~ "directeur de société",
+      TRUE ~ a
+    ),
+    a = str_trim(a),
+    a = str_to_lower(a)
+  ) %>%
+  group_by(a, ind_armee) %>%
+  count() %>%
+  arrange(desc(n))
+```
+
+## TO DO
+
++ indicatrice medaille militaire / ordre du mérite / victimes du terrorisme / compagnon de la libération
++ motif de la nomination
++ commentaires
++ vérification du grade
++ Analyse textuelle sur les motifs
++ Faire aussi l'ordre du mérite
+
+
+
