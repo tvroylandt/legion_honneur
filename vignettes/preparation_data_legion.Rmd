@@ -1,0 +1,15 @@
+---
+title: "Mise en forme et préparation des données"
+author: "Thomas Vroylandt"
+date: "04/01/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+```
+
