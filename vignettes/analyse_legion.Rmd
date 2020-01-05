@@ -29,6 +29,9 @@ df_legion <- read_rds(here("data/df_legion_clean.rds"))
 
 L'écrire sous forme de guide ?
 
++ légendes des graphs à ajouter
++ taille du texte à ajuster
+
 Légion, décoration française, etc...
 Attributions 4x par ans (2 civiles/2 militaires) + des promotions spéciales.
 Rappel des conditions, etc... + mettre une photo
@@ -188,25 +191,89 @@ reactable(
 
 ```
 
+## 3 - Homme ou femme, peu d'importance
 
-## 3 Homme ou femme, peu d'importance, sauf dans l'armée
+Le sexe n'a pas vraiment d'importance pusique depuis 2008, les promotions civiles sont paritaires - à l'exception des promotions exceptionnelles. 
 
-sexe
+Par contre, pour les militaires, `r df_legion %>% filter(ind_militaire == "1" & !is.na(sexe)) %>% group_by(sexe) %>% count() %>% ungroup() %>% mutate(part = n / sum(n) * 100) %>% filter(sexe == "M") %>% pull(part) %>% format(sep.mark = ",", digits = 0)` % des décorations concernent des hommes. Cela peut aussi s'expliquer par la sur-représentation masculine dans l'armée, notamment aux plus hauts grades, davantage concernés par la Légion d'honneur.
 
-## 4 si vous êtes dans l'armée, soyez plutôt gradés
+## 4 - Engagez-vous ! Plutôt comme officier...
 
-```{r}
-df_legion %>% 
-  filter(ind_militaire == "1") %>% 
-  group_by(grade, grade_armee) %>% 
-  count()  %>%
-  pivot_wider(
-    names_from = grade,
-    values_from = n,
-    values_fill = list(n = 0)
+Une part significative des nominations et promotions concernent les militaires. En moyenne sur 20 ans, cela représente `r df_legion %>% group_by(ind_militaire) %>% count() %>% ungroup() %>% mutate(part = n / sum(n) *100) %>% filter(ind_militaire == "1") %>% pull(part) %>% format(sep.mark = ",", digits = 0)` % du total.
+
+Ces décorations concernent principalement les officiers, surtout ceux avec un grade élevé. Ainsi, si les militaires du rang et les sous-officiers représentent la majorité des troupes, ce sont les officiers supérieurs (commandant, lieutenant-colonel, colonel, capitaine de corvette, de frégate ou de vaisseau) qui concentrent les Légions d'honneur.
+
+```{r grade_armee, fig.height=5.5, fig.width=12}
+df_legion %>%
+  filter(ind_militaire == "1" &
+           !is.na(grade) & !is.na(grade_armee)) %>%
+  mutate(
+    grade = fct_rev(
+      fct_relevel(
+        grade,
+        "Chevalier",
+        "Officier",
+        "Commandeur",
+        "Grand officier",
+        "Grand'croix"
+      )
+    ),
+    grade_armee = fct_relevel(
+      grade_armee,
+      "militaires du rang",
+      "sous-officiers",
+      "officiers subalternes",
+      "officiers supérieurs",
+      "officiers généraux"
+    )
+  ) %>%
+  arrange(grade, grade_armee) %>%
+  ggplot(aes(x = grade_armee, fill = grade)) +
+  geom_bar() +
+  coord_flip() +
+  scale_x_discrete(name = "",
+                   labels = 
+                     c(
+                       "officiers généraux" = str_wrap("Officiers généraux (général, amiral)", 35),
+                       "officiers supérieurs" = str_wrap("Officiers supérieurs (commandant, lieutenant-colonel, colonel, capitaine de corvette, de frégate ou de vaisseau)", 35),
+                       "officiers subalternes" = str_wrap("Officiers subalternes (aspirant, sous-lieutenant, lieutenant, capitaine, enseigne)", 35),
+                       "sous-officiers" = str_wrap("Sous-officiers (sergent, sergent-chef, adjudant, adjudant-chef, major, maître, gendarme, maréchal des logis)", 35),
+                       "militaires du rang" = str_wrap("Militaires du rang (soldat, matelot, caporal)", 35)
+                     )) +
+  scale_y_continuous(name = "Nombre de décorations sur 20 ans", 
+                     breaks = seq(0, 18000, 2000)) +
+  scale_fill_manual(
+    name = "",
+    values = c(
+      "Chevalier" = "#b52a31",
+      "Officier" = "#460184",
+      "Commandeur" = "#cecdcd",
+      "Grand officier" = "#00a36b",
+      "Grand'croix" = "#e2b24c"
+    )
+  ) +
+  guides(fill = guide_legend(reverse = TRUE)) + 
+  theme_minimal(base_line_size = 1) +
+  theme(
+    legend.position = "top",
+    text = element_text(family = "ubuntu"),
+    axis.text.x = element_text(
+      size = 13,
+      hjust = -0.1,
+      angle = -30
+    ),
+    axis.title.y = element_text(size = 13),
+    axis.text.y = element_text(size = 13),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_line(color = "grey80"),
+    plot.caption = element_text(hjust = 0,
+                                size = 11),
+    legend.text = element_text(size = 13)
   )
-  
 ```
+
+De plus plus votre grade dans l'armée est élevé, plus il le sera dans l'ordre de la Légion d'honneur. Ainsi les officiers généraux (généraux et amiraux) sont la seule catégorie à avoir moins de chevaliers (en proportion) que les autres grades. On peut supposer que c'est parce qu'ils ont déjà été nommé chevalier quand ils étaient moins gradés. Gardez donc en tête que les galons sur vos épaules vous aide à obtenir une barette rouge !
 
 ## 5 sinon quelques grands motifs
 
