@@ -17,6 +17,9 @@ knitr::opts_chunk$set(
 library(tidyverse)
 library(lubridate)
 library(here)
+library(htmltools)
+library(reactable)
+library(magick)
 ```
 
 ```{r import}
@@ -42,7 +45,7 @@ Les nominations se font par promotions, c'est-à-dire par vague. Pour les civils
 
 Des promotions spéciales peuvent intervenir. C'est le cas après un évènement de grande ampleur, par exemple, celle du 11 avril 2018 après les jeux olympiques et paralympiques de Pyeongchang, qui récompense les médaillés. Des actes particuliers de courage peuvent aussi vous valoir la décoration.
 
-```{r, fig.width=12, fig.height=6}
+```{r quand, fig.width=12, fig.height=6}
 # commentaire
 text_quand <-
   tibble(
@@ -56,7 +59,7 @@ text_quand <-
 
 # fleche
 fleche_quand <- tibble(
-  x_arrow = c("2000-09-01", "2000-09-01", "2000-04-01"),
+  x_arrow = c("2000-09-01", "2000-09-01", "2000-04-10"),
   xend_arrow = c("2000-01-03", "2000-07-16", "2000-06-20"),
   y_arrow = c(10000, 10000, 5000),
   yend_arrow = c(11000, 9000, 2000)
@@ -67,8 +70,8 @@ fleche_quand <- tibble(
 df_legion %>%
   mutate(date_a_plat = as_date(paste0("2000-", mois, "-", jour))) %>%
   ggplot() +
-  geom_histogram(aes(x = date_a_plat, fill = ind_militaire), 
-                  bins = 80) +
+  geom_histogram(aes(x = date_a_plat, fill = ind_militaire),
+                 bins = 80) +
   scale_x_date(name = "",
                date_breaks = "1 month",
                date_labels = "%B") +
@@ -103,7 +106,7 @@ df_legion %>%
     curvature = 0.1,
     arrow = arrow(length = unit(0.01, "npc"), type = "open")
   ) +
-  labs(caption = "Source : DILA, base OPENDATA - N. Cohen : https://www.steinertriples.fr/. \nTraitements : T. Vroylandt") +
+  labs(caption = "Source : DILA, base OPENDATA - N. Cohen : https://www.steinertriples.fr/ \nSommes des nominations et promotions sur 20 ans \nTraitements : T. Vroylandt") +
   theme_minimal(base_line_size = 1) +
   theme(
     legend.position = "top",
@@ -128,7 +131,63 @@ Le mieux reste encore d'être militaire puisque des promotions leur sont réserv
 
 ## 2 - Espèrez déjà être chevalier
 
-quels sont les grades, etc... (+ images (bar plot avec des images ? ))
+La Légion d'honneur comporte différents grades : du moins au plus élevé : chevalier, officier, commandeur, grand officier et grand'croix. Les deux derniers sont plutôt appelées des "dignités". Ils sont attribués dans l'ordre et l'on ne peut sauter les étapes, sauf dans des cas très rares (Simone Veil par exemple, directement faite grand officier en 2009). Les barettes que vous êtes autorisées à porter se parent de plus en plus d'attributs à mesure que votre grade s'élève !
+
+Si vous cherchez à obtenir cette décoration, visez plutôt le grade de chevalier, le plus courant. En effet, 80 % des décisions de nomination ou de promotion concernent ce grade, suivi par celui d'officier avec environ 16 %. Être promu commandeur ou élevé (terme consacré) grand officier voire grand'croix est beaucoup plus rare.
+
+```{r grades}
+# chemin des images
+df_grade <- df_legion %>%
+  filter(!is.na(grade)) %>%
+  group_by(grade) %>%
+  count() %>%
+  ungroup() %>%
+  mutate(
+    image = fct_recode(
+      grade,
+      "data/utils/legion_chevalier_barette.svg" = "Chevalier",
+      "data/utils/legion_officier_barette.svg" = "Officier",
+      "data/utils/legion_commandeur_barette.svg" = "Commandeur",
+      "data/utils/legion_grand_officier_barette.svg" = "Grand officier",
+      "data/utils/legion_grand_croix_barette.svg" = "Grand'croix"
+    ),
+    part = n / sum(n),
+    grade = fct_relevel(
+      grade,
+      "Chevalier",
+      "Officier",
+      "Commandeur",
+      "Grand officier",
+      "Grand'croix"
+    )
+  ) %>%
+  arrange(grade) %>%
+  select(image, grade, part)
+
+# Tableau
+reactable(
+  df_grade,
+  columns = list(
+    grade = colDef(name = "Grade"),
+    image = colDef(
+      name = "Barette",
+      cell = function(value) {
+        image <- img(src = knitr::image_uri(here(value)),
+                     height = "24px")
+        tagList(div(style = list(display = "inline-block", width = "80px"), image))
+      }
+    ),
+    part = colDef(name = "Part des décorations (en %)",
+                  format = colFormat(percent = TRUE, digits = 1))
+  ),
+  striped = TRUE,
+  borderless = TRUE,
+  compact = TRUE,
+  fullWidth = FALSE
+)
+
+```
+
 
 ## 3 Homme ou femme, peu d'importance, sauf dans l'armée
 
