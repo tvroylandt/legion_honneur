@@ -20,7 +20,6 @@ library(rvest)
 library(lubridate)
 library(here)
 library(tidytext)
-library(widyr)
 library(proustr)
 library(DT)
 
@@ -545,9 +544,9 @@ df_legion_6 <- df_legion_5 %>%
       str_detect(
         V11,
         "syndica|conseil économique|métier|professionnel|tourisme|fédération|associa|président fondateur|présidente fondatrice|président d'honneur|présidente d'honneur|mutuel|allocation|en faveur|fondation|sécurité civil|sauvetage"
-      ) ~ "association/syndicat/organisation professionnelle|pompier",
+      ) ~ "association/syndicat/organisation professionnelle/pompier",
       str_detect(V11, "chambre") &
-        str_detect(V11, "commerce|industrie|artisan") ~ "association/syndicat/organisation professionnelle",
+        str_detect(V11, "commerce|industrie|artisan") ~ "association/syndicat/organisation professionnelle/pompier",
       # professions libérales
       str_detect(V11, "avocat|huissier") ~ "avocat/huissier",
       str_detect(V11, "comptable|notaire|architecte") ~ "comptable/notaire/architecte",
@@ -606,6 +605,7 @@ df_legion_fin <- df_legion_6 %>%
     source_id,
     comment,
     grade,
+    annees_service,
     ind_militaire,
     an,
     mois,

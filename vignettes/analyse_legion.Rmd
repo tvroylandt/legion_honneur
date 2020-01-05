@@ -1,0 +1,202 @@
+---
+title: "Comment faire pour avoir la Légion d'honneur ?"
+author: "Thomas Vroylandt"
+date: "04/01/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE
+)
+```
+
+```{r packages}
+library(tidyverse)
+library(lubridate)
+library(here)
+```
+
+```{r import}
+df_legion <- read_rds(here("data/df_legion_clean.rds"))
+```
+
+
+L'écrire sous forme de guide ?
+
+Légion, décoration française, etc...
+Attributions 4x par ans (2 civiles/2 militaires) + des promotions spéciales.
+Rappel des conditions, etc... + mettre une photo
+
+Suscite parfois le scandale, récemment Cirelli, avant, Galliano, Patrick de Maistre, Maurice Papon, quelques dignitaires étrangers (Al Assad, Poutine), et même avant -> 1887
+
+On a donc cherché à en savoir plus sur cette décoration, plus haute distinction française. On a utilisé pour cela la base Opendata de la DILA, une direction du Premier Ministre. Elle a été assemblée et traitée par Nathann Cohen (site) puis retraité pour l'analyse. De fait, certaines approximations sont faites et des erreurs peuvent subsister. Les détails sont à la fin.
+
+Analyse sur 20 ans
+
+## 1 - Tenez-vous prêts pour la nouvelle année et le 14 juillet
+
+Les nominations se font par promotions, c'est-à-dire par vague. Pour les civils, deux promotions ont lieu chaque année, autour du 1er janvier et du 14 juillet, pour la fête nationale. Guettez donc ces moments !
+
+Des promotions spéciales peuvent intervenir. C'est le cas après un évènement de grande ampleur, par exemple, celle du 11 avril 2018 après les jeux olympiques et paralympiques de Pyeongchang, qui récompense les médaillés. Des actes particuliers de courage peuvent aussi vous valoir la décoration.
+
+```{r, fig.width=12, fig.height=6}
+# commentaire
+text_quand <-
+  tibble(
+    label = c(
+      "Les promotions civiles du 1er janvier et du 14 juillet sont les plus importantes",
+      "Les promotions militaires sont réparties entre avril et juillet"
+    ),
+    x = as_date(c("2000-10-10", "2000-03-10")),
+    y = c(9000, 7000)
+  )
+
+# fleche
+fleche_quand <- tibble(
+  x_arrow = c("2000-09-01", "2000-09-01", "2000-04-01"),
+  xend_arrow = c("2000-01-03", "2000-07-16", "2000-06-20"),
+  y_arrow = c(10000, 10000, 5000),
+  yend_arrow = c(11000, 9000, 2000)
+) %>%
+  mutate_at(vars(x_arrow, xend_arrow), as_date)
+
+# graph
+df_legion %>%
+  mutate(date_a_plat = as_date(paste0("2000-", mois, "-", jour))) %>%
+  ggplot() +
+  geom_histogram(aes(x = date_a_plat, fill = ind_militaire), 
+                  bins = 80) +
+  scale_x_date(name = "",
+               date_breaks = "1 month",
+               date_labels = "%B") +
+  scale_y_continuous(name = "Nombre de Légions d'honneur",
+                     breaks = seq(0, 14000, 2000)) +
+  scale_fill_manual(
+    name = "",
+    labels = c("1" = "Promotion militaire",
+               "0" = "Promotion civile"),
+    values = c("1" = "#e2b24c",
+               "0" = "#b52a31")
+  ) +
+  geom_label(
+    data = text_quand,
+    aes(
+      x = x,
+      y = y,
+      label = str_wrap(label, 20)
+    ),
+    label.size = NA,
+    size = 5
+  ) +
+  geom_curve(
+    data = fleche_quand,
+    aes(
+      x = x_arrow,
+      y = y_arrow,
+      xend = xend_arrow,
+      yend = yend_arrow
+    ),
+    size = 0.5,
+    curvature = 0.1,
+    arrow = arrow(length = unit(0.01, "npc"), type = "open")
+  ) +
+  labs(caption = "Source : DILA, base OPENDATA - N. Cohen : https://www.steinertriples.fr/. \nTraitements : T. Vroylandt") +
+  theme_minimal(base_line_size = 1) +
+  theme(
+    legend.position = "top",
+    text = element_text(family = "ubuntu"),
+    axis.text.x = element_text(
+      size = 13,
+      hjust = -0.1,
+      angle = -30
+    ),
+    axis.title.y = element_text(size = 13),
+    axis.text.y = element_text(size = 13),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.major.y = element_line(color = "grey80"),
+    plot.caption = element_text(hjust = 0,
+                                size = 11),
+    legend.text = element_text(size = 13)
+  )
+```
+
+Le mieux reste encore d'être militaire puisque des promotions leur sont réservées. Elles sont annoncées vers la fin du printemps et le début de l'été. Certaines promotions ont aussi lieu autour du 1er novembre.
+
+## 2 - Espèrez déjà être chevalier
+
+quels sont les grades, etc... (+ images (bar plot avec des images ? ))
+
+## 3 Homme ou femme, peu d'importance, sauf dans l'armée
+
+sexe
+
+## 4 si vous êtes dans l'armée, soyez plutôt gradés
+
+```{r}
+df_legion %>% 
+  filter(ind_militaire == "1") %>% 
+  group_by(grade, grade_armee) %>% 
+  count()  %>%
+  pivot_wider(
+    names_from = grade,
+    values_from = n,
+    values_fill = list(n = 0)
+  )
+  
+```
+
+## 5 sinon quelques grands motifs
+
+filtre civils
+
+```{r}
+df_legion %>%
+  group_by(motif_nomination, grade) %>%
+  count() %>%
+  group_by(motif_nomination) %>%
+  mutate(part = n / sum(n) * 100) %>%
+  ungroup() %>%
+  select(-n) %>%
+  pivot_wider(
+    names_from = grade,
+    values_from = part,
+    values_fill = list(part = 0)
+  )
+```
+
++ un nuage de mot ? (pour mettre en avant les mots président/secrétaire général, etc...)
+
+## 6 a pratiquer longtemps
+
+années de service
+
++ croisement par motif
+
+```{r}
+df_legion %>% 
+  ggplot(aes(x = motif_nomination, y = annees_service)) +
+  geom_boxplot() +
+  coord_flip()
+```
+
+
+## 7 et rapprochez vous d'un ministere
+
+nomme par + croisement avec années de service et motifs
+
+
+## Tableau récapitulatif
+
+Avec reactable tableau propre de récap pour recherche
+
+## Encadré méthodo
+
++ chaîne de traitement (lien github)
++ approximations, l'analyse vaut ce qu'elle vaut
++ serait mieux si open data de la chancellerie
+
++ étape suivant = refaire l'analyse avec une base un peu mieux traitée (ne pas hésiter à faire des propositions -> pull request sur github)
