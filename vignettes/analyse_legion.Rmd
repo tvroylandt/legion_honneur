@@ -27,16 +27,16 @@ df_legion <- read_rds(here("data/df_legion_clean.rds"))
 ```
 
 
-L'écrire sous forme de guide ?
+L'écrire sous forme de guide ? "Obtenir sa Légion d'honneur en 10 étapes, petit précis d'analyse statistique"
 
-+ légendes des graphs à ajouter
++ légendes des graphs à ajouter (version FiveThirtyEight ?)
 + taille du texte à ajuster
 
 Légion, décoration française, etc...
 Attributions 4x par ans (2 civiles/2 militaires) + des promotions spéciales.
 Rappel des conditions, etc... + mettre une photo
 
-Suscite parfois le scandale, récemment Cirelli, avant, Galliano, Patrick de Maistre, Maurice Papon, quelques dignitaires étrangers (Al Assad, Poutine), et même avant -> 1887
+Suscite parfois le scandale ou la polémique, récemment Cirelli, avant, Galliano, Patrick de Maistre, Maurice Papon, quelques dignitaires étrangers (Al Assad, Poutine), et même avant -> 1887
 
 On a donc cherché à en savoir plus sur cette décoration, plus haute distinction française. On a utilisé pour cela la base Opendata de la DILA, une direction du Premier Ministre. Elle a été assemblée et traitée par Nathann Cohen (site) puis retraité pour l'analyse. De fait, certaines approximations sont faites et des erreurs peuvent subsister. Les détails sont à la fin.
 
@@ -186,7 +186,8 @@ reactable(
   striped = TRUE,
   borderless = TRUE,
   compact = TRUE,
-  fullWidth = FALSE
+  fullWidth = FALSE,
+  sortable = FALSE
 )
 
 ```
@@ -195,11 +196,11 @@ reactable(
 
 Le sexe n'a pas vraiment d'importance pusique depuis 2008, les promotions civiles sont paritaires - à l'exception des promotions exceptionnelles. 
 
-Par contre, pour les militaires, `r df_legion %>% filter(ind_militaire == "1" & !is.na(sexe)) %>% group_by(sexe) %>% count() %>% ungroup() %>% mutate(part = n / sum(n) * 100) %>% filter(sexe == "M") %>% pull(part) %>% format(sep.mark = ",", digits = 0)` % des décorations concernent des hommes. Cela peut aussi s'expliquer par la sur-représentation masculine dans l'armée, notamment aux plus hauts grades, davantage concernés par la Légion d'honneur.
+Par contre, pour les militaires, `r df_legion %>% filter(ind_militaire == "1" & !is.na(sexe)) %>% group_by(sexe) %>% count() %>% ungroup() %>% mutate(part = n / sum(n) * 100) %>% filter(sexe == "M") %>% pull(part) %>% format(decimal.mark = ",", digits = 0)` % des décorations concernent des hommes. Cela peut aussi s'expliquer par la sur-représentation masculine dans l'armée, notamment aux plus hauts grades, davantage concernés par la Légion d'honneur.
 
 ## 4 - Engagez-vous ! Plutôt comme officier...
 
-Une part significative des nominations et promotions concernent les militaires. En moyenne sur 20 ans, cela représente `r df_legion %>% group_by(ind_militaire) %>% count() %>% ungroup() %>% mutate(part = n / sum(n) *100) %>% filter(ind_militaire == "1") %>% pull(part) %>% format(sep.mark = ",", digits = 0)` % du total.
+Une part significative des nominations et promotions concernent les militaires. En moyenne sur 20 ans, cela représente `r df_legion %>% group_by(ind_militaire) %>% count() %>% ungroup() %>% mutate(part = n / sum(n) *100) %>% filter(ind_militaire == "1") %>% pull(part) %>% format(decimal.mark = ",", digits = 0)` % du total.
 
 Ces décorations concernent principalement les officiers, surtout ceux avec un grade élevé. Ainsi, si les militaires du rang et les sous-officiers représentent la majorité des troupes, ce sont les officiers supérieurs (commandant, lieutenant-colonel, colonel, capitaine de corvette, de frégate ou de vaisseau) qui concentrent les Légions d'honneur.
 
@@ -262,7 +263,7 @@ df_legion %>%
       hjust = -0.1,
       angle = -30
     ),
-    axis.title.y = element_text(size = 13),
+    axis.title.x = element_text(size = 13),
     axis.text.y = element_text(size = 13),
     panel.grid.minor = element_blank(),
     panel.grid.major.y = element_blank(),
@@ -296,24 +297,147 @@ df_legion %>%
 
 + un nuage de mot ? (pour mettre en avant les mots président/secrétaire général, etc...)
 
-## 6 a pratiquer longtemps
+## 6 - Perséverez (ou gagnez les JO pour aller plus vite) !
 
-années de service
+```{r motif_civil_stat, fig.height=7, fig.width=12}
+df_motif_init <- df_legion %>%
+  filter(
+    grade == "Chevalier" &
+      !is.na(motif_nomination) &
+      ind_militaire == "0" &
+      !is.na(annees_service) &
+      motif_nomination != "étranger"
+  )
 
-+ croisement par motif
+# médiane totale
+df_motif_median <- df_motif_init %>% 
+  summarise(med = median(annees_service)) %>% 
+  pull()
 
-```{r}
-df_legion %>% 
-  ggplot(aes(x = motif_nomination, y = annees_service)) +
-  geom_boxplot() +
-  coord_flip()
+# résistant
+df_motif_resistant_median <- df_motif_init %>% 
+  group_by(motif_nomination) %>% 
+  summarise(med = median(annees_service)) %>% 
+  filter(motif_nomination == "résistant/anciens combattants") %>% 
+  pull(med)
+
+# sportif
+df_motif_sportif_q1 <- df_motif_init %>% 
+  group_by(motif_nomination) %>% 
+  summarise(q1 = quantile(annees_service)[2]) %>% 
+  filter(motif_nomination == "sportif") %>% 
+  pull(q1)
 ```
 
+En médiane, pour un civil, il faut `r df_motif_median` années de services publics ou d'activités professionnelles pour être nommé chevalier (le minimum est de 20 ans, sauf cas exceptionnels).
+
+Selon les motifs de nomination, la médiane diffère. Elle est la plus élevée pour les résistants et anciens combattants (`r df_motif_resistant_median` années). Les sportifs peuvent être nommés très tôt puisqu'un quart d'entre eux le sont avec `r df_motif_sportif_q1` ans de services au plus, notamment du fait des promotions pour avoir gagné de grandes compétitions (Mondiaux, Jeux Olympiques). A quelques exceptions près, ce sont presque les seuls civils à être en partie affranchis de la barrière des 20 années de services.
+
+```{r motif_civil, fig.height=7, fig.width=12}
+df_legion %>%
+  filter(
+    grade == "Chevalier" &
+      !is.na(motif_nomination) &
+      ind_militaire == "0" &
+      !is.na(annees_service) &
+      motif_nomination != "étranger"
+  ) %>%
+  ggplot(aes(x = fct_reorder(motif_nomination, annees_service), y = annees_service)) +
+  geom_boxplot(outlier.alpha = 0,
+               fill = "#b52a31",
+               alpha = 0.5) +
+  coord_flip() +
+  scale_x_discrete(
+    name = "",
+    labels = c(
+      "résistant/anciens combattants" = str_wrap("Résistant / Ancien combattant", 30),
+      "religion" = str_wrap("Clergé, monde religieux", 30),
+      "élu" = str_wrap("Elu (local, national, ministre)", 30),
+      "association/syndicat/organisation professionnelle/pompier" = str_wrap("Engagement associatif, syndical ou professionnel", 30),
+      "universitaire/éducation/formation/recherche" = str_wrap("Enseignement et recherche", 30),
+      "journaliste/écrivain/édition" = str_wrap("Journaliste, écrivain ou éditeur", 30),
+      "artiste/culture/patrimoine" = str_wrap("Artiste / Culture / Patrimoine", 30),
+      "milieu agricole" = str_wrap("Monde agricole", 30),
+      "monde médico-social" = str_wrap("Monde médico-social", 30),
+      "directeur de société" = str_wrap("Monde de l'entreprise", 30),
+      "sportif" = str_wrap("Sportif", 30),
+      "avocat/huissier/comptable/notaire/architecte" = str_wrap(
+        "Profession libérale (avocat, huissier, comptable, notaire, architecte)",
+        30
+      ),
+      "fonction publique" = str_wrap("Fonction publique", 30)
+    )
+  ) +
+  scale_y_continuous(name = "Années de service ou d'activités professionnelles",
+                     breaks = seq(0, 90, 10)) +
+  theme_minimal(base_line_size = 1) +
+  theme(
+    text = element_text(family = "ubuntu"),
+    axis.text = element_text(size = 13),
+    axis.title.x = element_text(size = 13),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_line(color = "grey80"),
+    plot.caption = element_text(hjust = 0,
+                                size = 11)
+  )
+```
 
 ## 7 et rapprochez vous d'un ministere
 
 nomme par + croisement avec années de service et motifs
 
+```{r}
+df_legion %>%
+  group_by(nomme_par_r, grade) %>%
+  count() %>%
+  group_by(nomme_par_r) %>%
+  mutate(part = n / sum(n) * 100) %>%
+  ungroup() %>%
+  select(-n) %>%
+  pivot_wider(
+    names_from = grade,
+    values_from = part,
+    values_fill = list(part = 0)
+  )
+```
+
+## 8 - Une décoration si particulière
+
+```{r particule, include=FALSE}
+# total
+df_particule_tot <- df_legion %>% 
+  mutate(particule = str_detect(nom_complet, " de | d'| des ")) %>% 
+  group_by(particule) %>% 
+  count() %>% 
+  ungroup() %>% 
+  mutate(part = round(n / sum(n) * 100, 1),
+         part = format(part, decimal.mark = ",")) %>% 
+  filter(particule == TRUE) %>%
+  pull(part)
+
+# par grade
+df_particule_grade <- df_legion %>% 
+  mutate(particule = str_detect(nom_complet, " de | d'| des ")) %>% 
+  group_by(grade, particule) %>% 
+  count() %>% 
+  group_by(grade) %>% 
+  mutate(part = round(n / sum(n) * 100, 1), 
+         part = format(part, decimal.mark = ",")) %>% 
+  filter(particule == TRUE)
+```
+
+Avoir une particule dans votre nom peut servir. C'est très fortement le cas avant (http://coulmont.com/blog/2015/09/17/de-de-de/), cela l'est moins maintenant puisqu'un peu moins de `r df_particule_tot` % des nominations concernent des personnes portant des particules.
+
+Cependant, c'est déjà une proportion raisonnable, il faut mettre toutes les chances de son côté ! Cela peut aussi beaucoup vous aider puisque la proportion augmente à mesure que l'on progresse dans l'ordre. Si elle est de `r filter(df_particule_grade, grade == "Chevalier") %>% pull(part)` % pour les chevaliers, elle augmente progressivement, à `r filter(df_particule_grade, grade == "Officier") %>% pull(part)` % pour les officiers et `r filter(df_particule_grade, grade == "Commandeur") %>% pull(part)` % pour les commandeurs. Accéder aux plus grandes dignités se fait encore davantage avec une particule puisque `r filter(df_particule_grade, grade == "Grand officier") %>% pull(part)` % des grands officiers et `r filter(df_particule_grade, grade == "Grand'croix") %>% pull(part)` % des grands'croix élevés en ont une !
+
+## 9 - TROUVER UNE ETAPE 9 (pour faire en 10 étapes)
+
+## 10 - Etape bonus : devenir officier
+
+## Conclusion 
+
+Récap des points
 
 ## Tableau récapitulatif
 

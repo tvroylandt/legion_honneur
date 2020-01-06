@@ -548,8 +548,8 @@ df_legion_6 <- df_legion_5 %>%
       str_detect(V11, "chambre") &
         str_detect(V11, "commerce|industrie|artisan") ~ "association/syndicat/organisation professionnelle/pompier",
       # professions libérales
-      str_detect(V11, "avocat|huissier") ~ "avocat/huissier",
-      str_detect(V11, "comptable|notaire|architecte") ~ "comptable/notaire/architecte",
+      str_detect(V11, "avocat|huissier|comptable|notaire|architecte") ~ "avocat/huissier/comptable/notaire/architecte",
+      # journaliste et écrivain
       str_detect(V11, "journaliste|écrivain|éditrice|édition|éditeur|belles lettres") ~ "journaliste/écrivain/édition",
       # artiste/culture
       str_detect(
