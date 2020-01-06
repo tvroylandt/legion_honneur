@@ -1,5 +1,6 @@
 ---
-title: "Comment faire pour avoir la Légion d'honneur ?"
+title: "Obtenir la Légion d'honneur en 10 étapes"
+subtitle : "Petit précis d'analyse statistique"
 author: "Thomas Vroylandt"
 date: "04/01/2020"
 output: html_document
@@ -27,13 +28,10 @@ df_legion <- read_rds(here("data/df_legion_clean.rds"))
 ```
 
 
-L'écrire sous forme de guide ? "Obtenir sa Légion d'honneur en 10 étapes, petit précis d'analyse statistique"
-
 + légendes des graphs à ajouter (version FiveThirtyEight ?)
 + taille du texte à ajuster
 
 Légion, décoration française, etc...
-Attributions 4x par ans (2 civiles/2 militaires) + des promotions spéciales.
 Rappel des conditions, etc... + mettre une photo
 
 Suscite parfois le scandale ou la polémique, récemment Cirelli, avant, Galliano, Patrick de Maistre, Maurice Papon, quelques dignitaires étrangers (Al Assad, Poutine), et même avant -> 1887
@@ -46,7 +44,7 @@ Analyse sur 20 ans
 
 Les nominations se font par promotions, c'est-à-dire par vague. Pour les civils, deux promotions ont lieu chaque année, autour du 1er janvier et du 14 juillet, pour la fête nationale. Guettez donc ces moments !
 
-Des promotions spéciales peuvent intervenir. C'est le cas après un évènement de grande ampleur, par exemple, celle du 11 avril 2018 après les jeux olympiques et paralympiques de Pyeongchang, qui récompense les médaillés. Des actes particuliers de courage peuvent aussi vous valoir la décoration.
+Des promotions spéciales peuvent intervenir. C'est le cas après un évènement de grande ampleur, par exemple, celle du 11 avril 2018 après les Jeux Olympiques et Paralympiques de Pyeongchang, qui récompense les médaillés. Des actes particuliers de courage peuvent aussi vous valoir la décoration.
 
 ```{r quand, fig.width=12, fig.height=6}
 # commentaire
@@ -431,7 +429,50 @@ Avoir une particule dans votre nom peut servir. C'est très fortement le cas ava
 
 Cependant, c'est déjà une proportion raisonnable, il faut mettre toutes les chances de son côté ! Cela peut aussi beaucoup vous aider puisque la proportion augmente à mesure que l'on progresse dans l'ordre. Si elle est de `r filter(df_particule_grade, grade == "Chevalier") %>% pull(part)` % pour les chevaliers, elle augmente progressivement, à `r filter(df_particule_grade, grade == "Officier") %>% pull(part)` % pour les officiers et `r filter(df_particule_grade, grade == "Commandeur") %>% pull(part)` % pour les commandeurs. Accéder aux plus grandes dignités se fait encore davantage avec une particule puisque `r filter(df_particule_grade, grade == "Grand officier") %>% pull(part)` % des grands officiers et `r filter(df_particule_grade, grade == "Grand'croix") %>% pull(part)` % des grands'croix élevés en ont une !
 
-## 9 - TROUVER UNE ETAPE 9 (pour faire en 10 étapes)
+## 9 - Vous vous appelez Jean, Pierre ou Michel ? Ou encore Françoise, Catherine ou Anne ? Bingo ! 
+
+Certains prénoms concentrent les décorations. Sans surprise, il s'agit des prénoms beaucoup donnés dans les générations en âge de recevoir la Légion d'honneur. Pour la plupart, ce sont des prénoms dits "classiques".
+
+```{r prenoms}
+# Top des prenoms
+df_prenoms_top <- df_legion %>% 
+  filter(!is.na(sexe)) %>% 
+  group_by(prenom, sexe) %>% 
+  count(sort = TRUE) %>% 
+  group_by(sexe) %>% 
+  top_n(100, wt = n)
+
+df_prenoms_top_m <- df_prenoms_top %>% 
+  filter(sexe == "M") %>% 
+  rowid_to_column() %>% 
+  rename(prenom_m = prenom,
+         n_m = n) %>% 
+  ungroup() %>% 
+  select(-sexe)
+
+df_prenoms_top_f <- df_prenoms_top %>% 
+  filter(sexe == "F") %>% 
+  rowid_to_column() %>% 
+  rename(prenom_f = prenom,
+         n_f = n) %>% 
+  ungroup() %>% 
+  select(-sexe)
+
+# Tableau
+tab_prenoms <- df_prenoms_top_m %>% 
+  inner_join(df_prenoms_top_f, by = "rowid")
+
+reactable(tab_prenoms,
+          columns = list(rowid = colDef(name = "Rang du prénom"),
+                         prenom_m = colDef(name = "Homme"),
+                         n_m = colDef(name = "Nombre de décorés"),
+                         prenom_f = colDef(name = "Femme"),
+                         n_f = colDef(name = "Nombre de décorés")),
+          striped = TRUE,
+          borderless = TRUE)
+```
+
+Certains prénoms, comme Claude par exemple, sont absents de la liste car on n'a pas sur les classer entre homme et femme.
 
 ## 10 - Etape bonus : devenir officier
 

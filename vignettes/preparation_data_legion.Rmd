@@ -600,6 +600,7 @@ df_legion_fin <- df_legion_6 %>%
   rename(comment = V11) %>%
   select(
     nom_complet,
+    prenom,
     sexe,
     source_date,
     source_id,
