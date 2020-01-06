@@ -21,6 +21,7 @@ library(here)
 library(htmltools)
 library(reactable)
 library(magick)
+library(emo)
 ```
 
 ```{r import}
@@ -303,8 +304,7 @@ df_motif_init <- df_legion %>%
     grade == "Chevalier" &
       !is.na(motif_nomination) &
       ind_militaire == "0" &
-      !is.na(annees_service) &
-      motif_nomination != "étranger"
+      !is.na(annees_service)
   )
 
 # médiane totale
@@ -337,8 +337,7 @@ df_legion %>%
     grade == "Chevalier" &
       !is.na(motif_nomination) &
       ind_militaire == "0" &
-      !is.na(annees_service) &
-      motif_nomination != "étranger"
+      !is.na(annees_service)
   ) %>%
   ggplot(aes(x = fct_reorder(motif_nomination, annees_service), y = annees_service)) +
   geom_boxplot(outlier.alpha = 0,
@@ -469,20 +468,193 @@ reactable(tab_prenoms,
                          prenom_f = colDef(name = "Femme"),
                          n_f = colDef(name = "Nombre de décorés")),
           striped = TRUE,
-          borderless = TRUE)
+          borderless = TRUE,
+          fullWidth = FALSE)
 ```
 
 Certains prénoms, comme Claude par exemple, sont absents de la liste car on n'a pas sur les classer entre homme et femme.
 
-## 10 - Etape bonus : devenir officier
+## 10 - Les chers amis de la France
+
+La Légion d'honneur peut être décernée à des personnalités étrangères, pour les remercier et les honorer pour leur contribution au rayonnement de la France. Cela ne représente toutefois qu'une infime partie des nominations (`r df_legion %>% group_by(nationalite) %>% count() %>% ungroup() %>% mutate(part = round(n / sum(n) * 100, 1)) %>% filter(is.na(nationalite)) %>% mutate(part = format(100 - part, decimal.mark = ",")) %>% pull(part)` % des civils sur 15 ans).
+
+```{r nationalite, fig.height=6, fig.width=12}
+# recoder les nationalités
+df_nationalite <- df_legion %>%
+  filter(!is.na(nationalite) & nationalite != "au") %>%
+  mutate(
+    nationalite = fct_collapse(
+      str_to_title(nationalite),
+      "Autres européennes" = c(
+        "Portugaise",
+        "Bulgare",
+        "Serbe",
+        "Islandaise",
+        "Suédoise",
+        "Norvégienne",
+        "Grecque",
+        "Danoise",
+        "Hongroise",
+        "Autrichienne",
+        "Finlandaise",
+        "Luxembourgeoise",
+        "Polonaise",
+        "Irlandaise"
+      ),
+      "Asiatiques" = c(
+        "Chinoise",
+        "Japonaise",
+        "Vietnamienne",
+        "Thaïlandaise",
+        "Cambodgienne",
+        "Indienne"
+      ),
+      "Autres américaines" = c(
+        "Canadienne",
+        "Colombienne",
+        "Brésilienne",
+        "Argentine",
+        "Vénézuélienne",
+        "Mexicaine"
+      ),
+      "Moyen-orientales" = c("Turque", "Égyptienne", "Libanaise", "Israélienne"),
+      "Africaines (hors Maghreb)" = c("Tchadienne", "Congolaise", "Camerounaise", "Sénégalaise"),
+      "Maghrébines" = c("Algérienne", "Marocaine", "Tunisienne")
+    ),
+    flag_ji = case_when(
+      nationalite == "Belge" ~ as.character(ji("belgium")),
+      nationalite == "Allemande" ~ as.character(ji("germany")),
+      nationalite == "Italienne" ~ as.character(ji("italy")),
+      nationalite == "Espagnole" ~ as.character(ji("spain")),
+      nationalite == "Américaine" ~ as.character(ji("us")),
+      nationalite == "Suisse" ~ as.character(ji("switzerland")),
+      nationalite == "Britannique" ~ as.character(ji("uk")),
+      nationalite == "Néerlandaise" ~ as.character(ji("netherlands")),
+      nationalite == "Autres européennes" ~ paste0(
+        as.character(ji("ireland")),
+        as.character(ji("poland")),
+        as.character(ji("sweden"))
+      ),
+      nationalite == "Moyen-orientales" ~ paste0(
+        as.character(ji("tr")),
+        as.character(ji("israel")),
+        as.character(ji("lebanon"))
+      ),
+      nationalite == "Africaines (hors Maghreb)" ~ paste0(
+        as.character(ji("senegal")),
+        as.character(ji("chad")),
+        as.character(ji("cameroon"))
+      ),
+      nationalite == "Maghrébines" ~ paste0(as.character(ji("algeria")),
+                                            as.character(ji("morocco")),
+                                            as.character(ji("tunisia"))),
+      nationalite == "Asiatiques" ~ paste0(
+        as.character(ji("china")),
+        as.character(ji("jp"))
+      ),
+      nationalite == "Autres américaines" ~ paste0(
+        as.character(ji("canada")),
+        as.character(ji("mexico")),
+        as.character(ji("brazil"))
+      )
+    ),
+    nb_flag = case_when(nationalite %in% c("Belge", "Allemande", "Italienne", "Espagnole", "Américaine", "Suisse", "Britannique", "Néerlandaise") ~ 1,
+                        nationalite %in% c("Asiatiques") ~ 2,
+                        TRUE ~ 3)
+  ) %>%
+  group_by(nationalite, flag_ji, nb_flag) %>%
+  count(sort = TRUE) %>%
+  ungroup()
+
+# graph
+df_nationalite %>%
+  mutate(
+    flag_ji = fct_reorder(flag_ji, n),
+    nationalite = fct_reorder(nationalite, n)
+  ) %>%
+  ggplot(aes(x = nationalite)) +
+  geom_bar(aes(y = n),
+    stat = "identity",
+    fill = "#b52a31",
+    alpha = 0.6,
+    color = "black"
+  ) +
+  ggtext::geom_richtext(
+    aes(label = flag_ji, y = n + 2.5 + nb_flag),
+    fill = NA,
+    label.color = NA,
+    label.padding = grid::unit(rep(0, 4), "pt"),
+    size = 8
+  ) +
+  coord_flip() +
+  scale_x_discrete(name = "Nationalité") +
+  scale_y_continuous(name = "Nombre de Légions d'honneur (2005-2020)",
+                     breaks = seq(0, 50, 10)) +
+  theme_minimal(base_line_size = 1) +
+  theme(
+    legend.position = "top",
+    text = element_text(family = "ubuntu"),
+    axis.text.x = element_text(
+      size = 13,
+      hjust = -0.1,
+      angle = -30
+    ),
+    axis.title = element_text(size = 13),
+    axis.text.y = element_text(size = 13),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_line(color = "grey80"),
+    plot.caption = element_text(hjust = 0,
+                                size = 11),
+    legend.text = element_text(size = 13)
+  )
+
+# On ne les détecte qu'à partir de 2005 (le mettre en légende).
+```
+
+On ne capte toutefois qu'une partie des attributions à des étrangers car elles ne sont pas toutes publiées. Une partie sont protocolaires et font partie du jeu diplomatique. Une autre sont le fait du prince. Ces nominations étrangères sont parfois polémiques, à l'exemple du général Noriega ou de Bachar Al-Assad.
+
+## Étape bonus : devenir officier
 
 ## Conclusion 
 
 Récap des points
 
-## Tableau récapitulatif
+## Explorez les attributions de décorations
 
-Avec reactable tableau propre de récap pour recherche
+Pour que vous puissiez vous-même regarder ce que ça donne, et chercher les légionnaires, voici un tableau avec l'ensemble des nominations/promotions/élevations parues depuis 2000. Ne sont listés que les civils.
+
+Les codages qui ont servis à l'analyse sont aussi présentés dans ce tableau. Ils ne sont pas exempts d'erreurs ou d'approximations. Reportez-vous à l'encadré sur la méthode pour plus de détails.
+
+```{r tab_recap}
+df_legion_recap <- df_legion %>%
+  filter(ind_militaire == "0") %>%
+  select(source_date,
+         nom_complet,
+         sexe,
+         comment,
+         grade,
+         nomme_par_r,
+         motif_nomination)
+
+reactable(
+  df_legion_recap,
+  columns = list(
+    source_date = colDef(name = "Date"),
+    nom_complet = colDef(name = "Identité", minWidth = 80),
+    sexe = colDef(name = "Sexe"),
+    comment = colDef(name = "Commentaire", minWidth = 300),
+    grade = colDef(name = "Grade ou dignité"),
+    nomme_par_r = colDef(name = "Nommé par"),
+    motif_nomination = colDef(name = "Motif")
+  ),
+  striped = TRUE,
+  borderless = TRUE,
+  filterable = TRUE,
+  compact = TRUE,
+  defaultPageSize = 8
+)
+```
 
 ## Encadré méthodo
 

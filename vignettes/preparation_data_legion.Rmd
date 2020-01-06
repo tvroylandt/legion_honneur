@@ -523,7 +523,6 @@ df_legion_6 <- df_legion_5 %>%
   mutate(
     motif_nomination = case_when(
       ind_militaire == "1" ~ "militaire",
-      str_detect(V11, "nationalité") ~ "étranger",
       # entreprise
       str_detect(V11, "chef|dirigeant|direct|président|administrat") &
         str_detect(
@@ -591,12 +590,21 @@ df_legion_6 <- df_legion_5 %>%
   )
 ```
 
+### Nationalité
+
+On cherche à détecter la nationalité avec une expression régulière.
+
+```{r etranger}
+df_legion_7 <- df_legion_6 %>% 
+  mutate(nationalite = str_extract(V11, "(?<=nationalité\\s)\\w+"))
+```
+
 ## Export
 
 On sélectionne les colonnes et on exporte.
 
 ```{r export}
-df_legion_fin <- df_legion_6 %>%
+df_legion_fin <- df_legion_7 %>%
   rename(comment = V11) %>%
   select(
     nom_complet,
@@ -616,7 +624,8 @@ df_legion_fin <- df_legion_6 %>%
     nomme_par_r,
     grade_armee,
     ind_medaille_militaire,
-    motif_nomination
+    motif_nomination,
+    nationalite
   )
 
 write_rds(df_legion_fin, here("data/df_legion_clean.rds"))
