@@ -31,13 +31,17 @@ df_legion <- read_rds(here("data/df_legion_clean.rds"))
 
 + légendes des graphs à ajouter (version FiveThirtyEight ?)
 + taille du texte à ajuster
++ ne définir les thèmes qu'une fois et rationaliser un peu le code (notamment les recodages)
 
 Légion, décoration française, etc...
 Rappel des conditions, etc... + mettre une photo
 
+
 Suscite parfois le scandale ou la polémique, récemment Cirelli, avant, Galliano, Patrick de Maistre, Maurice Papon, quelques dignitaires étrangers (Al Assad, Poutine), et même avant -> 1887
 
-On a donc cherché à en savoir plus sur cette décoration, plus haute distinction française. On a utilisé pour cela la base Opendata de la DILA, une direction du Premier Ministre. Elle a été assemblée et traitée par Nathann Cohen (site) puis retraité pour l'analyse. De fait, certaines approximations sont faites et des erreurs peuvent subsister. Les détails sont à la fin.
+---
+
+On a donc cherché à en savoir plus sur cette décoration, plus haute distinction française. On a utilisé pour cela la base Opendata de la DILA, une direction du Premier Ministre. Elle a été assemblée et traitée par Nathann Cohen (https://www.steinertriples.fr/ncohen/) puis retraitée pour l'analyse. De fait, certaines approximations sont faites et des erreurs peuvent subsister. Les détails sont à la fin.
 
 Analyse sur 20 ans
 
@@ -275,26 +279,104 @@ df_legion %>%
 
 De plus plus votre grade dans l'armée est élevé, plus il le sera dans l'ordre de la Légion d'honneur. Ainsi les officiers généraux (généraux et amiraux) sont la seule catégorie à avoir moins de chevaliers (en proportion) que les autres grades. On peut supposer que c'est parce qu'ils ont déjà été nommé chevalier quand ils étaient moins gradés. Gardez donc en tête que les galons sur vos épaules vous aide à obtenir une barette rouge !
 
-## 5 sinon quelques grands motifs
+## 5 - ... ou dans une association (ou une entreprise)
 
-filtre civils
+```{r motif_text}
+df_motifs <- df_legion %>% 
+    filter(ind_militaire == "0" &
+           !is.na(motif_nomination) &
+           !is.na(grade)) %>%
+  group_by(motif_nomination) %>% 
+  count() %>% 
+  ungroup() %>% 
+  mutate(part = round(n / sum(n) * 100, 1),
+         part = format(part, decimal.mark = ","))
+  
+```
 
-```{r}
+Si vous êtes un civil, le mieux est encore de vous engager dans une association, un syndicat ou une organisation professionnelle. C'est le motif qui rapporte le plus de décorations (`r df_motifs %>% filter(motif_nomination == "association/syndicat/organisation professionnelle/pompier") %>% pull(part)` %). Il est suivi par l'exercice de hautes fonctions dans le monde de l'entreprise (`r df_motifs %>% filter(motif_nomination == "directeur de société") %>% pull(part)` %) - être administrateur de sociétés est un bon plan. La fonction publique, l'enseignement et la recherche et les élus suivent avec respectivement `r df_motifs %>% filter(motif_nomination == "fonction publique") %>% pull(part)` %, `r df_motifs %>% filter(motif_nomination == "universitaire/éducation/formation/recherche") %>% pull(part)` % et `r df_motifs %>% filter(motif_nomination == "élus") %>% pull(part)` % des décorations.
+
+```{r motif_nomination, fig.height = 7, fig.width = 12}
 df_legion %>%
-  group_by(motif_nomination, grade) %>%
+  filter(ind_militaire == "0" &
+           !is.na(motif_nomination) &
+           !is.na(grade)) %>%
+  group_by(grade, motif_nomination) %>%
   count() %>%
-  group_by(motif_nomination) %>%
-  mutate(part = n / sum(n) * 100) %>%
   ungroup() %>%
-  select(-n) %>%
-  pivot_wider(
-    names_from = grade,
-    values_from = part,
-    values_fill = list(part = 0)
+  mutate(
+    grade = fct_rev(
+      fct_relevel(
+        grade,
+        "Chevalier",
+        "Officier",
+        "Commandeur",
+        "Grand officier",
+        "Grand'croix"
+      )
+    ),
+    motif_nomination = fct_reorder(motif_nomination, n, .fun = sum)
+  ) %>%
+  arrange(grade, motif_nomination) %>%
+  ggplot(aes(x = motif_nomination, y = n, fill = grade)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  scale_x_discrete(
+    name = "",
+    labels = c(
+      "résistant/anciens combattants" = str_wrap("Résistant / Ancien combattant", 30),
+      "religion" = str_wrap("Clergé, monde religieux", 30),
+      "élu" = str_wrap("Elu (local, national, ministre)", 30),
+      "association/syndicat/organisation professionnelle/pompier" = str_wrap("Engagement associatif, syndical ou professionnel", 30),
+      "universitaire/éducation/formation/recherche" = str_wrap("Enseignement et recherche", 30),
+      "journaliste/écrivain/édition" = str_wrap("Journaliste, écrivain ou éditeur", 30),
+      "artiste/culture/patrimoine" = str_wrap("Artiste / Culture / Patrimoine", 30),
+      "milieu agricole" = str_wrap("Monde agricole", 30),
+      "monde médico-social" = str_wrap("Monde médico-social", 30),
+      "directeur de société" = str_wrap("Monde de l'entreprise", 30),
+      "sportif" = str_wrap("Sportif", 30),
+      "avocat/huissier/comptable/notaire/architecte" = str_wrap(
+        "Profession libérale (avocat, huissier, comptable, notaire, architecte)",
+        30
+      ),
+      "fonction publique" = str_wrap("Fonction publique", 30)
+    )
+    
+  ) +
+  scale_y_continuous(name = "Nombre de décorations sur 20 ans",
+                     breaks = seq(0, 12000, 1000)) +
+  scale_fill_manual(
+    name = "",
+    values = c(
+      "Chevalier" = "#b52a31",
+      "Officier" = "#460184",
+      "Commandeur" = "#cecdcd",
+      "Grand officier" = "#00a36b",
+      "Grand'croix" = "#e2b24c"
+    )
+  ) +
+  guides(fill = guide_legend(reverse = TRUE)) +
+  theme_minimal(base_line_size = 1) +
+  theme(
+    legend.position = "top",
+    text = element_text(family = "ubuntu"),
+    axis.text.x = element_text(
+      size = 13,
+      hjust = -0.1,
+      angle = -30
+    ),
+    axis.title.x = element_text(size = 13),
+    axis.text.y = element_text(size = 13),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_line(color = "grey80"),
+    plot.caption = element_text(hjust = 0,
+                                size = 11),
+    legend.text = element_text(size = 13)
   )
 ```
 
-+ un nuage de mot ? (pour mettre en avant les mots président/secrétaire général, etc...)
+Par contre, il vaut mieux avoir un poste important, qu'importe le milieu dans lequel on exerce. Le plus souvent, les décorés sont "présidents", "fondateurs", "administrateur", "directeur général", "secrétaire général", "sous-directeur", etc.
 
 ## 6 - Perséverez (ou gagnez les JO pour aller plus vite) !
 
@@ -380,22 +462,84 @@ df_legion %>%
   )
 ```
 
-## 7 et rapprochez vous d'un ministere
+## 7 - Rapprochez vous d'un ministère, plutôt Bercy
 
-nomme par + croisement avec années de service et motifs
+Les nominations sont faites par le président de la République, mais sont le plus souvent demandées par un ministère. Tous ne sont pas égaux. Le plus gros contingent est de loin celui des ministère économiques et financier.
 
-```{r}
-df_legion %>%
-  group_by(nomme_par_r, grade) %>%
+Attention car ce ministère est plutôt en perte de vitesse et représente plus de deux fois moins de nomination sur les cinq dernières années qu'il y a 20 ans. Optez dans ce cas pour des ministères qui montent, les affaires étrangères par exemple. Le quai d'Orsay plutôt que Bercy ?
+
+```{r nomme_par, fig.height=6, fig.width=12}
+# recodage
+df_nomme_par <- df_legion %>%
+  filter(ind_militaire == "0" &
+           !is.na(nomme_par_r)) %>%
+  mutate(an_5 = fct_collapse(as.character(an),
+                             "2000-2004" = c("2000", "2001", "2002", "2003", "2004"),
+                             "2005-2009" = c("2005", "2006", "2007", "2008", "2009"),
+                             "2010-2014" = c("2010", "2011", "2012", "2013", "2014"),
+                             "2015-2020" = c("2015", "2016", "2017", "2018", "2019", "2020"))) %>% 
+  group_by(an_5, nomme_par_r) %>%
   count() %>%
-  group_by(nomme_par_r) %>%
-  mutate(part = n / sum(n) * 100) %>%
-  ungroup() %>%
-  select(-n) %>%
-  pivot_wider(
-    names_from = grade,
-    values_from = part,
-    values_fill = list(part = 0)
+  group_by(an_5) %>% 
+  mutate(part = round(n / sum(n) * 100, 1)) %>% 
+  select(-n) %>% 
+  filter(an_5 %in% c("2000-2004", "2015-2020")) %>% 
+  pivot_wider(values_from = part, names_from = an_5) %>% 
+  mutate(nomme_par_r = fct_reorder(nomme_par_r, `2015-2020`))
+
+# graph
+df_nomme_par %>%
+  ggplot(aes(
+    x = `2000-2004`,
+    xend = `2015-2020`,
+    y = nomme_par_r,
+    group = nomme_par_r
+  )) +
+  ggalt::geom_dumbbell(
+    size = 4,
+    dot_guide = TRUE,
+    dot_guide_size = 0.5,
+    color = "#b52a31",
+    colour_xend = "#460184",
+    alpha = 0.8
+  ) +
+  scale_x_continuous(name = "Part des décorations, en % (2000-2004, en rouge, VS 2015-2020, en violet)", 
+                     breaks = seq(0, 22, 2)) +
+  scale_y_discrete(name = "",
+                   labels = c("affaires étrangères" = "Affaires étrangères",
+                              "premier ministre" = "Premier ministre",
+                              "intérieur/immigration" = "Intérieur et immigration",
+                              "économie/budget/industrie" = "Finances",
+                              "justice" = "Justice",
+                              "éducation nationale/enseignement supérieur/recherche" = "Éducation et recherche",
+                              "santé/affaires sociales" = "Santé et solidarités",
+                              "environnement" = "Environnement",
+                              "culture" = "Culture",
+                              "chancellerie de la légion d'honneur" = str_wrap("Chancellerie de la Légion d'Honneur", 25),
+                              "défense/anciens combattants" = "Défense",
+                              "agriculture" = "Agriculture",
+                              "sport/jeunesse/association" = "Sports",
+                              "travail" = "Travail",
+                              "outre-mer" = "Outre-mer",
+                              "logement/ville/territoires" = str_wrap("Logement, ville et territoires", 25),
+                              "fonction publique" = "Fonction publique")) +
+  theme_minimal(base_line_size = 1) +
+    theme(
+    legend.position = "top",
+    text = element_text(family = "ubuntu"),
+    axis.text.x = element_text(
+      size = 13,
+      hjust = -0.1,
+      angle = -30
+    ),
+    axis.title.x = element_text(size = 13),
+    axis.text.y = element_text(size = 13),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_line(color = "grey80"),
+    plot.caption = element_text(hjust = 0,
+                                size = 11),
+    legend.text = element_text(size = 13)
   )
 ```
 
@@ -476,7 +620,7 @@ Certains prénoms, comme Claude par exemple, sont absents de la liste car on n'a
 
 ## 10 - Les chers amis de la France
 
-La Légion d'honneur peut être décernée à des personnalités étrangères, pour les remercier et les honorer pour leur contribution au rayonnement de la France. Cela ne représente toutefois qu'une infime partie des nominations (`r df_legion %>% group_by(nationalite) %>% count() %>% ungroup() %>% mutate(part = round(n / sum(n) * 100, 1)) %>% filter(is.na(nationalite)) %>% mutate(part = format(100 - part, decimal.mark = ",")) %>% pull(part)` % des civils sur 15 ans).
+La Légion d'honneur peut être décernée à des personnalités étrangères, pour les remercier et les honorer pour leur contribution au rayonnement de la France. Cela ne représente toutefois qu'une infime partie des nominations (`r df_legion %>% group_by(nationalite) %>% count() %>% ungroup() %>% mutate(part = round(n / sum(n) * 100, 1)) %>% filter(is.na(nationalite)) %>% mutate(part = format(100 - part, decimal.mark = ",")) %>% pull(part)` % des civils sur 15 ans). Si vous êtes étranger, pour voser la Légion, il faut vieux être d'un des pays voisin de la France, comme l'Allemagne, l'Italie ou la Belgique par exemple, voire d'un pays européen. Une exception : les États-Unis qui concentrent près de cinquante décorations.
 
 ```{r nationalite, fig.height=6, fig.width=12}
 # recoder les nationalités
@@ -576,7 +720,7 @@ df_nationalite %>%
   geom_bar(aes(y = n),
     stat = "identity",
     fill = "#b52a31",
-    alpha = 0.6,
+    alpha = 0.5,
     color = "black"
   ) +
   ggtext::geom_richtext(
@@ -587,7 +731,7 @@ df_nationalite %>%
     size = 8
   ) +
   coord_flip() +
-  scale_x_discrete(name = "Nationalité") +
+  scale_x_discrete(name = "Nationalités") +
   scale_y_continuous(name = "Nombre de Légions d'honneur (2005-2020)",
                      breaks = seq(0, 50, 10)) +
   theme_minimal(base_line_size = 1) +
@@ -614,11 +758,11 @@ df_nationalite %>%
 
 On ne capte toutefois qu'une partie des attributions à des étrangers car elles ne sont pas toutes publiées. Une partie sont protocolaires et font partie du jeu diplomatique. Une autre sont le fait du prince. Ces nominations étrangères sont parfois polémiques, à l'exemple du général Noriega ou de Bachar Al-Assad.
 
-## Étape bonus : devenir officier
+## Étape bonus : devenir officier !
 
-## Conclusion 
+Vous êtes chevalier et vous voulez passer à la vitesse supérieure ?
 
-Récap des points
+Un seul secret : poussez au paroxysme ce qui vous a valu d'être chevalier. Vous étiez vice-président d'une grande entreprise ? Devenez président d'une entreprise encore plus importante. Vous étiez sous-directeur dans l'administration ? Devenez directeur, dans le public ou le privé.
 
 ## Explorez les attributions de décorations
 
@@ -635,7 +779,25 @@ df_legion_recap <- df_legion %>%
          comment,
          grade,
          nomme_par_r,
-         motif_nomination)
+         motif_nomination) %>%
+  mutate(
+    motif_nomination = fct_recode(
+      motif_nomination,
+      "Résistant / Ancien combattant" = "résistant/anciens combattants",
+      "Clergé, monde religieux" = "religion",
+      "Elu (local, national, ministre)" = "élu",
+      "Engagement associatif, syndical ou professionnel" = "association/syndicat/organisation professionnelle/pompier",
+      "Enseignement et recherche" = "universitaire/éducation/formation/recherche",
+      "Journaliste, écrivain ou éditeur" = "journaliste/écrivain/édition",
+      "Artiste / Culture / Patrimoine" = "artiste/culture/patrimoine",
+      "Monde agricole" = "milieu agricole",
+      "Monde médico-social" = "monde médico-social",
+      "Monde de l'entreprise" = "directeur de société",
+      "Sportif" = "sportif",
+      "Profession libérale (avocat, huissier, comptable, notaire, architecte)" = "avocat/huissier/comptable/notaire/architecte",
+      "Fonction publique" = "fonction publique"
+    )
+  )
 
 reactable(
   df_legion_recap,
@@ -658,8 +820,10 @@ reactable(
 
 ## Encadré méthodo
 
-+ chaîne de traitement (lien github)
++ chaîne de traitement (lien github + refaire le README du repo sur le modèle de vendanges)
 + approximations, l'analyse vaut ce qu'elle vaut
 + serait mieux si open data de la chancellerie
+
++ (https://www.steinertriples.fr/ncohen/data/nominations_JORF/)
 
 + étape suivant = refaire l'analyse avec une base un peu mieux traitée (ne pas hésiter à faire des propositions -> pull request sur github)
