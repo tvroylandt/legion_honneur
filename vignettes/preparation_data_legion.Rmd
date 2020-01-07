@@ -299,30 +299,30 @@ On va construire une liste d'autorité de nominations à partir de la détection
 # fonction avec la liste
 detect_nomination <- function(x) {
   case_when(
-    str_detect(x, "premier ministre|parlement") ~ "premier ministre",
+    str_detect(x, "premier ministre|parlement") ~ "p_ministre",
     str_detect(x, "agriculture|agro") ~ "agriculture",
     str_detect(x, "écolo|environnement|ecolo|durable") ~ "environnement",
-    str_detect(x, "éducation|enseignement|recherche|éduc") ~ "éducation nationale/enseignement supérieur/recherche",
-    str_detect(x, "affaires étrangères|coopération|europ") ~ "affaires étrangères",
+    str_detect(x, "éducation|enseignement|recherche|éduc") ~ "education",
+    str_detect(x, "affaires étrangères|coopération|europ") ~ "aff_etrangeres",
     str_detect(
       x,
       "économie|budget|industrie|entreprise|finance|producti|commerce|tourisme|compte"
-    ) ~ "économie/budget/industrie",
-    str_detect(x, "fonction publique|réforme") ~ "fonction publique",
-    str_detect(x, "défense|armée|combattant") ~ "défense/anciens combattants",
+    ) ~ "finances",
+    str_detect(x, "fonction publique|réforme") ~ "f_publique",
+    str_detect(x, "défense|armée|combattant") ~ "defense",
     str_detect(x, "culture|communication") ~ "culture",
     str_detect(x, "justice") ~ "justice",
-    str_detect(x, "intérieur|immigration") ~ "intérieur/immigration",
+    str_detect(x, "intérieur|immigration") ~ "interieur",
     str_detect(x, "travail|emploi|profession") ~ "travail",
     str_detect(
       x,
       "santé|solidarité|famille|femme|égalité|social|exclusion|handicap|âgées|aînés|maladie"
-    ) ~ "santé/affaires sociales",
-    str_detect(x, "sport|jeunesse|associa") ~ "sport/jeunesse/association",
+    ) ~ "sante_social",
+    str_detect(x, "sport|jeunesse|associa") ~ "sport",
     str_detect(x, "outre-mer") ~ "outre-mer",
-    str_detect(x, "ville|logement|territo|centralisation") ~ "logement/ville/territoires",
+    str_detect(x, "ville|logement|territo|centralisation") ~ "lgmt_terr",
     str_detect(x, "équipement|transport") ~ "transports",
-    str_detect(x, "chancellerie de la légion d'honneur") ~ "chancellerie de la légion d'honneur"
+    str_detect(x, "chancellerie de la légion d'honneur") ~ "legion_honneur"
   )
 }
 
@@ -364,23 +364,22 @@ detect_grade_armee <- function(x) {
     str_detect(
       x,
       "colonel|commandant|capitaine de corvette|capitaine de frégate|capitaine de vaisseau|commandant|escadron|bataillon|médecin|medecin|commissaire|ingénieur|ingenieur|administrat|dentiste|pharmacien|aumônier|aumonier"
-    ) ~ "officiers supérieurs",
-    str_detect(x, "général|amiral") ~ "officiers généraux",
+    ) ~ "off_sup",
+    str_detect(x, "général|amiral") ~ "off_gen",
     str_detect(
       x,
       "soldat|matelot|quartier-maître|quartier maître|quartier-maitre|quartier maitre|caporal|brigadier|garde|chasseur|spahi|artilleur|légionnaire|legionnaire|canonnier|cavalier|cuirassé"
-    ) ~ "militaires du rang",
+    ) ~ "mili_rang",
     str_detect(
       x,
       "aspirant|enseigne|lieutenant|capitaine"
-    ) ~ "officiers subalternes",
+    ) ~ "off_sub",
     str_detect(
       x,
       "adjudant|sergent|gendarme|aspirant|major|maître|maitre|maréchal|chef de section"
-    ) ~ "sous-officiers"
+    ) ~ "sous_off"
   )
 }
-
 
 # appliquer
 df_legion_3 <- df_legion_2 %>%
@@ -476,7 +475,7 @@ L'analyse des motifs de nomination passe par une analyse textuelle des mots les 
 
 On n'analyse que les motifs pour les non-militaires.
 
-```{r analyse_textuelle}
+```{r analyse_textuelle, eval=FALSE}
 # stopwords
 stop_perso <- tibble(word = c("services", "ancien", "ancienne", "ans", "chevalier", 
                               "officier", "croix", "grand", "commandeur", "janvier",
@@ -528,10 +527,10 @@ df_legion_6 <- df_legion_5 %>%
         str_detect(
           V11,
           "société|général|entreprise|industriel|groupe|établissement|surveillance"
-        ) ~ "directeur de société",
-      str_detect(V11, "banque|pharmaceutique") ~ "directeur de société",
+        ) ~ "entreprise",
+      str_detect(V11, "banque|pharmaceutique") ~ "entreprise",
       # agricole
-      str_detect(V11, "agricole") ~ "milieu agricole",
+      str_detect(V11, "agricole") ~ "agricole",
       # sport
       str_detect(V11, "médaill|jeux") &
         str_detect(V11, "or|argent|bronze|olympique|paralympique") ~ "sportif",
@@ -543,31 +542,34 @@ df_legion_6 <- df_legion_5 %>%
       str_detect(
         V11,
         "syndica|conseil économique|métier|professionnel|tourisme|fédération|associa|président fondateur|présidente fondatrice|président d'honneur|présidente d'honneur|mutuel|allocation|en faveur|fondation|sécurité civil|sauvetage"
-      ) ~ "association/syndicat/organisation professionnelle/pompier",
+      ) ~ "associations",
       str_detect(V11, "chambre") &
-        str_detect(V11, "commerce|industrie|artisan") ~ "association/syndicat/organisation professionnelle/pompier",
+        str_detect(V11, "commerce|industrie|artisan") ~ "associations",
       # professions libérales
-      str_detect(V11, "avocat|huissier|comptable|notaire|architecte") ~ "avocat/huissier/comptable/notaire/architecte",
+      str_detect(V11, "avocat|huissier|comptable|notaire|architecte") ~ "p_liberal",
       # journaliste et écrivain
-      str_detect(V11, "journaliste|écrivain|éditrice|édition|éditeur|belles lettres") ~ "journaliste/écrivain/édition",
+      str_detect(
+        V11,
+        "journaliste|écrivain|éditrice|édition|éditeur|belles lettres"
+      ) ~ "lettres",
       # artiste/culture
       str_detect(
         V11,
         "artiste|auteur|compositeur|interprète|orchestre|musée|patrimo|comédie|culture|conservat"
-      ) ~ "artiste/culture/patrimoine",
+      ) ~ "culture",
       # élu
       str_detect(
         V11,
         "maire|agglomération|commune|électi|ministre|député|sénat|assemblée|parlement"
-      ) ~ "élu",
+      ) ~ "elu",
       str_detect(V11, "conseil") &
         str_detect(V11,
-                   "municipal|région|général|département") ~ "élu",
+                   "municipal|région|général|département") ~ "elu",
       # université
       str_detect(
         V11,
         "universit|cherche|professeur|directeur d'étude|directrice d'étude|éducation|formation|école|collège|lycée|chef d'établissement|enseignant|conférence|académie"
-      ) ~ "universitaire/éducation/formation/recherche",
+      ) ~ "educ_recherche",
       # religion
       str_detect(
         V11,
@@ -577,15 +579,15 @@ df_legion_6 <- df_legion_5 %>%
       str_detect(
         V11,
         "préfe|ambassad|sous-direct|inspect|finance|publique|public|administr|contrôl|payeur|consul|minist|ingénieur général|contractuel|commissaire général|cour d'appel|grande instance|tribunal|juge|judiciaire|cassation|ville|mairie|atomique|police|commissaire"
-      ) ~ "fonction publique",
+      ) ~ "f_publique",
       str_detect(V11, "conseil")  &
-        str_detect(V11, "etat|état|honoraire|compte|maître|maitre|technique") ~ "fonction publique",
+        str_detect(V11, "etat|état|honoraire|compte|maître|maitre|technique") ~ "f_publique",
       str_detect(V11, "direct|chambre") &
-        str_detect(V11, "région|département") ~ "fonction publique",
-       # résistant
-      str_detect(V11, "combattant|résistan") ~ "résistant/anciens combattants",
+        str_detect(V11, "région|département") ~ "f_publique",
+      # résistant
+      str_detect(V11, "combattant|résistan") ~ "resistant",
       # médical
-      str_detect(V11, "hôpital|hospitali|médecin|dentiste|social") ~ "monde médico-social"
+      str_detect(V11, "hôpital|hospitali|médecin|dentiste|social") ~ "med_social"
     )
   )
 ```
@@ -595,37 +597,96 @@ df_legion_6 <- df_legion_5 %>%
 On cherche à détecter la nationalité avec une expression régulière.
 
 ```{r etranger}
-df_legion_7 <- df_legion_6 %>% 
-  mutate(nationalite = str_extract(V11, "(?<=nationalité\\s)\\w+"))
+df_legion_7 <- df_legion_6 %>%
+  mutate(
+    nationalite = str_extract(V11, "(?<=nationalité\\s)\\w+"),
+    nationalite = fct_collapse(
+      str_to_title(nationalite),
+      "Autres européennes" = c(
+        "Portugaise",
+        "Bulgare",
+        "Serbe",
+        "Islandaise",
+        "Suédoise",
+        "Norvégienne",
+        "Grecque",
+        "Danoise",
+        "Hongroise",
+        "Autrichienne",
+        "Finlandaise",
+        "Luxembourgeoise",
+        "Polonaise",
+        "Irlandaise"
+      ),
+      "Asiatiques" = c(
+        "Chinoise",
+        "Japonaise",
+        "Vietnamienne",
+        "Thaïlandaise",
+        "Cambodgienne",
+        "Indienne"
+      ),
+      "Autres américaines" = c(
+        "Canadienne",
+        "Colombienne",
+        "Brésilienne",
+        "Argentine",
+        "Vénézuélienne",
+        "Mexicaine"
+      ),
+      "Moyen-orientales" = c("Turque", "Égyptienne", "Libanaise", "Israélienne"),
+      "Africaines (hors Maghreb)" = c("Tchadienne", "Congolaise", "Camerounaise", "Sénégalaise"),
+      "Maghrébines" = c("Algérienne", "Marocaine", "Tunisienne")
+    )
+  )
 ```
 
 ## Export
 
-On sélectionne les colonnes et on exporte.
+On sélectionne les colonnes, on refait l'ordre éventuellement et on exporte. 
+
+On enlève les commentaires et le nom complet pour les militaires afin d'avoir une base plus légère. On les utilisent pas ensuite.
 
 ```{r export}
 df_legion_fin <- df_legion_7 %>%
+  filter(!is.na(grade)) %>%
   rename(comment = V11) %>%
   select(
     nom_complet,
     prenom,
     sexe,
     source_date,
-    source_id,
     comment,
     grade,
     annees_service,
     ind_militaire,
     an,
     mois,
-    semaine,
     jour,
-    mois_jour,
     nomme_par_r,
     grade_armee,
-    ind_medaille_militaire,
     motif_nomination,
     nationalite
+  ) %>%
+  mutate(
+    grade = fct_relevel(
+      grade,
+      "Chevalier",
+      "Officier",
+      "Commandeur",
+      "Grand officier",
+      "Grand'croix"
+    ),
+    grade_armee = fct_relevel(
+      grade_armee,
+      "mili_rang",
+      "sous_off",
+      "off_sub",
+      "off_sup",
+      "off_gen"
+    ),
+    comment = case_when(ind_militaire == "0" ~ comment),
+    nom_complet = case_when(ind_militaire == "0" ~ nom_complet)
   )
 
 write_rds(df_legion_fin, here("data/df_legion_clean.rds"))
