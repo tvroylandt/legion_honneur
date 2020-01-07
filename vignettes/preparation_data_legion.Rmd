@@ -544,7 +544,7 @@ df_legion_6 <- df_legion_5 %>%
         "syndica|conseil économique|métier|professionnel|tourisme|fédération|associa|président fondateur|présidente fondatrice|président d'honneur|présidente d'honneur|mutuel|allocation|en faveur|fondation|sécurité civil|sauvetage"
       ) ~ "associations",
       str_detect(V11, "chambre") &
-        str_detect(V11, "commerce|industrie|artisan") ~ "associations",
+        str_detect(V11, "commerce|industrie|artisanat") ~ "associations",
       # professions libérales
       str_detect(V11, "avocat|huissier|comptable|notaire|architecte") ~ "p_liberal",
       # journaliste et écrivain
@@ -555,7 +555,7 @@ df_legion_6 <- df_legion_5 %>%
       # artiste/culture
       str_detect(
         V11,
-        "artiste|auteur|compositeur|interprète|orchestre|musée|patrimo|comédie|culture|conservat"
+        "artiste|auteur|compositeur|interprète|orchestre|musée|patrimo|comédie|culture|conservat|peintre"
       ) ~ "culture",
       # élu
       str_detect(
@@ -686,7 +686,8 @@ df_legion_fin <- df_legion_7 %>%
       "off_gen"
     ),
     comment = case_when(ind_militaire == "0" ~ comment),
-    nom_complet = case_when(ind_militaire == "0" ~ nom_complet)
+    nom_complet = case_when(ind_militaire == "0" ~ nom_complet),
+    comment = str_remove_all(comment, "\\;(.*)")
   )
 
 write_rds(df_legion_fin, here("data/df_legion_clean.rds"))

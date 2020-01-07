@@ -1,10 +1,3 @@
----
-title: "Obtenir la Légion d'honneur en 10 étapes"
-subtitle : "Petit précis d'analyse statistique"
-author: "Thomas Vroylandt"
-date: "04/01/2020"
-output: html_document
----
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
@@ -104,22 +97,9 @@ df_legion <- read_rds(here("data/df_legion_clean.rds")) %>%
   )
 ```
 
-+ légendes des graphs à ajouter (version FiveThirtyEight ?)
-+ taille du texte à ajuster
-+ ne définir les thèmes qu'une fois et rationaliser un peu le code (notamment les recodages)
-+ centrer les tableaux
+La Légion d'honneur est la plus haute décoration française, crée par Napoléon. Son attribution donne lieu à de nombreux articles dans les médias sur les nommés et les promus de la dernière vague. Elle suscite parfois le scandale ou la polémique, notamment quand les personnes décorées n'ont pas un parcours exemplaire. Cela a récemment été le cas pour Jean-François Cirelli, patron de Blackrock, promu officier en pleine réforme sur les retraites, ou auparavant de John Galliano, Patrick de Maistre, Maurice Papon ou quelques dignitaires étrangers peu recommandables (Al-Assad, Poutine).
 
-Légion, décoration française, etc...
-Rappel des conditions, etc... + mettre une photo
-
-
-Suscite parfois le scandale ou la polémique, récemment Cirelli, avant, Galliano, Patrick de Maistre, Maurice Papon, quelques dignitaires étrangers (Al Assad, Poutine), et même avant -> 1887
-
----
-
-On a donc cherché à en savoir plus sur cette décoration, plus haute distinction française. On a utilisé pour cela la base Opendata de la DILA, une direction du Premier Ministre. Elle a été assemblée et traitée par Nathann Cohen (https://www.steinertriples.fr/ncohen/) puis retraitée pour l'analyse. De fait, certaines approximations sont faites et des erreurs peuvent subsister. Les détails sont à la fin.
-
-Analyse sur 20 ans
+On a donc cherché à en savoir plus sur cette décoration, plus haute distinction française. On a utilisé pour cela la base Opendata de la DILA, une direction du Premier Ministre. Elle a été assemblée et traitée par Nathann Cohen (https://www.steinertriples.fr/ncohen/) puis retraitée pour l'analyse. De fait, certaines approximations sont faites et des erreurs peuvent subsister. On a assemblé ici les données des 20 dernières années (depuis 2000).
 
 ## 1 - Tenez-vous prêts pour la nouvelle année et le 14 juillet
 
@@ -409,7 +389,7 @@ df_legion %>%
   ggplot(aes(x = fct_reorder(motif_nomination, annees_service), y = annees_service)) +
   geom_boxplot(outlier.alpha = 0,
                fill = "#b52a31",
-               alpha = 0.5) +
+               alpha = 0.8) +
   coord_flip() +
   scale_x_discrete(
     name = "",
@@ -670,13 +650,13 @@ df_legion_recap <- df_legion %>%
 reactable(
   df_legion_recap,
   columns = list(
-    source_date = colDef(name = "Date"),
+    source_date = colDef(name = "Date", format = colFormat(date = TRUE)),
     nom_complet = colDef(name = "Identité", minWidth = 80),
     sexe = colDef(name = "Sexe"),
     comment = colDef(name = "Commentaire", minWidth = 300),
     grade = colDef(name = "Grade ou dignité"),
     nomme_par_r = colDef(name = "Nommé par"),
-    motif_nomination = colDef(name = "Motif")
+    motif_nomination = colDef(name = "Motif", minWidth = 80)
   ),
   striped = TRUE,
   borderless = TRUE,
@@ -686,12 +666,19 @@ reactable(
 )
 ```
 
-## Encadré méthodo
-
-+ chaîne de traitement (lien github + refaire le README du repo sur le modèle de vendanges)
-+ approximations, l'analyse vaut ce qu'elle vaut
-+ serait mieux si open data de la chancellerie
-
-+ (https://www.steinertriples.fr/ncohen/data/nominations_JORF/)
-
-+ étape suivant = refaire l'analyse avec une base un peu mieux traitée (ne pas hésiter à faire des propositions -> pull request sur github)
+> ## Méthodologie
+>
+> Quand la Légion d'Honneur est attribuée, que ce soit pour la première fois ou pour une promotion (ou une élévation), une publication au Journal Officiel l'annonce. Il arrive que cela ne soit pas toujours le cas (pour les nominations étrangères par exemple).
+>
+> Ces données sont mises à disposition par la Direction de l'Information Légale et Administrative (DILA), en open data. Elles ont ensuite été reprises par Nathann Cohen, chercheur en informatique et citoyen engagé. Il les a mises à disposition [ici](https://www.steinertriples.fr/ncohen/data/nominations_JORF/), aux côtés de l'ensemble des nominations recenseés au Journal Officiel.
+>
+> Ces données sont mises en forme par la DILA au format XML, puis retraitée une première fois par Nathann Cohen, puis une seconde fois, de façon plus légère, par moi. Elles peuvent donc contenir des erreurs, des approximations ou des manques, du fait de problèmes de codage, de formulations qui changent au cours des années ou d'un certain flou (sur les motifs de nomination par exemple). Les données présentées ici constituent davantage un aperçu de qui sont les décorés de la Légion d'honneur, qu'une analyse statistiquement exacte. Il faudrait pour cela que la Chancellerie mette ses données en Open data.
+>
+> Si vous souhaitez contribuer à l'amélioration de cette analyse, vous pouvez me faire remonter quelques problèmes, à partir du code sur Github (ci-dessous) ou  les signaler directement sur le site d'où j'ai tiré les données : (https://www.steinertriples.fr/ncohen/data/nominations_JORF/aider/)
+>
+> ## Code et analyse
+>
+> L'ensemble de l'analyse et du code est disponible sur [github](https://github.com/tvroylandt/legion_honneur).
+>
+> Les remarques, commentaires et propositions sont les bienvenus : tvroylandt@gmail.com
+>
