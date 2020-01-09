@@ -663,12 +663,12 @@ reactable(
   df_legion_recap,
   columns = list(
     source_date = colDef(name = "Date", format = colFormat(date = TRUE)),
-    nom_complet = colDef(name = "Identité", minWidth = 60),
+    nom_complet = colDef(name = "Identité", minWidth = 40),
     sexe = colDef(name = "Sexe", minWidth = 10),
-    comment = colDef(name = "Commentaire", minWidth = 200),
+    comment = colDef(name = "Commentaire", minWidth = 150),
     grade = colDef(name = "Grade ou dignité", minWidth = 30),
-    nomme_par_r = colDef(name = "Nommé par", minWidth = 40),
-    motif_nomination = colDef(name = "Motif", minWidth = 60)
+    nomme_par_r = colDef(name = "Nommé par", minWidth = 30),
+    motif_nomination = colDef(name = "Motif", minWidth = 50)
   ),
   striped = TRUE,
   borderless = TRUE,
