@@ -98,6 +98,12 @@ df_legion <- read_rds("data/df_legion_clean.rds") %>%
   )
 ```
 
+```{r img_legion}
+htmltools::img(src = "https://upload.wikimedia.org/wikipedia/commons/f/f0/Croix_de_la_legion_d_honneur_Recto.jpg", 
+               alt = 'image_legion',
+               style = 'float: right;padding-right:10px;height:200px;width:100px')
+```
+
 La Légion d'honneur est la plus haute décoration française, crée par Napoléon. Son attribution donne lieu à de nombreux articles dans les médias sur les nommés et les promus de la dernière vague. Elle suscite parfois le scandale ou la polémique, notamment quand les personnes décorées n'ont pas un parcours exemplaire. Cela a récemment été le cas pour Jean-François Cirelli, patron de Blackrock, promu officier en pleine réforme sur les retraites, ou auparavant de John Galliano, Patrick de Maistre, Maurice Papon ou quelques dignitaires étrangers peu recommandables (Al-Assad, Poutine).
 
 On a donc cherché à en savoir plus sur cette décoration, plus haute distinction française. On a utilisé pour cela la base Opendata de la DILA, une direction du Premier Ministre. Elle a été assemblée et traitée par Nathann Cohen (https://www.steinertriples.fr/ncohen/) puis retraitée pour l'analyse. De fait, certaines approximations sont faites et des erreurs peuvent subsister. On a assemblé ici les données des 20 dernières années (depuis 2000).
