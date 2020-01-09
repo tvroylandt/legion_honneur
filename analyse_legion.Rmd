@@ -193,11 +193,11 @@ df_grade <- df_legion %>%
   mutate(
     image = fct_recode(
       grade,
-      "data/images/legion_chevalier_barette.svg" = "Chevalier",
-      "data/images/legion_officier_barette.svg" = "Officier",
-      "data/images/legion_commandeur_barette.svg" = "Commandeur",
-      "data/images/legion_grand_officier_barette.svg" = "Grand officier",
-      "data/images/legion_grand_croix_barette.svg" = "Grand'croix"
+      "https://upload.wikimedia.org/wikipedia/commons/e/e6/Legion_Honneur_Chevalier_ribbon.svg" = "Chevalier",
+      "https://upload.wikimedia.org/wikipedia/commons/e/e0/Legion_Honneur_Officier_ribbon.svg" = "Officier",
+      "https://upload.wikimedia.org/wikipedia/commons/e/ef/Legion_Honneur_Commandeur_ribbon.svg" = "Commandeur",
+      "https://upload.wikimedia.org/wikipedia/commons/a/af/Legion_Honneur_GO_ribbon.svg?uselang=fr" = "Grand officier",
+      "https://upload.wikimedia.org/wikipedia/commons/b/ba/Legion_Honneur_GC_ribbon.svg?uselang=fr" = "Grand'croix"
     ),
     part = n / sum(n)
   ) %>%
@@ -211,7 +211,7 @@ reactable(
     image = colDef(
       name = "Barette",
       cell = function(value) {
-        image <- img(src = knitr::image_uri(value),
+        image <- img(src = value,
                      height = "24px")
         tagList(div(style = list(display = "inline-block", width = "80px"), image))
       }
