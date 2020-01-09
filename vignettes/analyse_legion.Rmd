@@ -39,7 +39,9 @@ theme_tvr <- theme_minimal(base_line_size = 1) +
     panel.grid.major.x = element_blank(),
     panel.grid.major.y = element_blank(),
     plot.caption = element_text(hjust = 0,
-                                size = 11),
+                                size = 10,
+                                family = "mono",
+                                color = "grey40"),
     legend.text = element_text(size = 13)
   )
 ```
@@ -261,7 +263,7 @@ Une part significative des nominations et promotions concernent les militaires. 
 
 Ces décorations concernent principalement les officiers, surtout ceux avec un grade élevé. Ainsi, si les militaires du rang et les sous-officiers représentent la majorité des troupes, ce sont les officiers supérieurs (commandant, lieutenant-colonel, colonel, capitaine de corvette, de frégate ou de vaisseau) qui concentrent les Légions d'honneur.
 
-```{r grade_armee_graph, fig.height=5.5, fig.width=12}
+```{r grade_armee_graph, fig.height=6.5, fig.width=12}
 df_legion %>%
   filter(ind_militaire == "1" &
            !is.na(grade_armee)) %>%
@@ -274,13 +276,14 @@ df_legion %>%
     labels = function(x)
       str_wrap(x, width = 30)
   ) +
-  scale_y_continuous(name = "Nombre de décorations sur 20 ans",
+  scale_y_continuous(name = "Nombre de décorations",
                      breaks = seq(0, 18000, 2000)) +
   scale_fill_manual(
     name = "",
     values = col_grade
   ) +
   guides(fill = guide_legend(reverse = TRUE)) +
+  labs(caption = "Source : DILA, base OPENDATA - N. Cohen : https://www.steinertriples.fr/ \nSommes des nominations et promotions sur 20 ans \nTraitements : T. Vroylandt") +
   theme_tvr +
   theme(panel.grid.major.x = element_line(color = "grey80"))
 ```
@@ -330,13 +333,14 @@ df_legion %>%
     labels = function(x)
       str_wrap(x, width = 30),
   ) +
-  scale_y_continuous(name = "Nombre de décorations sur 20 ans",
+  scale_y_continuous(name = "Nombre de décorations",
                      breaks = seq(0, 12000, 1000)) +
   scale_fill_manual(
     name = "",
     values = col_grade
   ) +
   guides(fill = guide_legend(reverse = TRUE)) +
+  labs(caption = "Source : DILA, base OPENDATA - N. Cohen : https://www.steinertriples.fr/ \nSommes des nominations et promotions sur 20 ans \nTraitements : T. Vroylandt") +
   theme_tvr +
   theme(panel.grid.major.x = element_line(color = "grey80"))
 ```
@@ -398,11 +402,12 @@ df_legion %>%
   ) +
   scale_y_continuous(name = "Années de service ou d'activités professionnelles",
                      breaks = seq(0, 90, 10)) +
+  labs(caption = "Source : DILA, base OPENDATA - N. Cohen : https://www.steinertriples.fr/ \nSommes des nominations et promotions sur 20 ans \nTraitements : T. Vroylandt") +
   theme_tvr +
   theme(panel.grid.major.x = element_line(color = "grey80"))
 ```
 
-## 7 - Rapprochez vous d'un ministère, plutôt Bercy
+## 7 - Rapprochez vous d'un ministère
 
 Les nominations sont faites par le président de la République, mais sont le plus souvent demandées par un ministère. Tous ne sont pas égaux. Le plus gros contingent est de loin celui des ministère économiques et financier.
 
@@ -443,7 +448,7 @@ df_nomme_par %>%
     colour_xend = "#460184",
     alpha = 0.8
   ) +
-  scale_x_continuous(name = "Part des décorations, en % (2000-2004, en rouge, VS 2015-2020, en violet)",
+  scale_x_continuous(name = "Part des décorations, en %",
                      breaks = seq(0, 22, 2)) +
   scale_y_discrete(
     name = "",
@@ -451,6 +456,7 @@ df_nomme_par %>%
       str_wrap(x, width = 20)
   ) +
   theme_tvr +
+labs(caption = "Source : DILA, base OPENDATA - N. Cohen : https://www.steinertriples.fr/ \nParts 2000-2005 en rouge VS part 2015-2020 en violet \nTraitements : T. Vroylandt") +
   theme(panel.grid.major.x = element_line(color = "grey80"))
 ```
 
@@ -614,6 +620,7 @@ df_nationalite %>%
   scale_x_discrete(name = "Nationalités") +
   scale_y_continuous(name = "Nombre de Légions d'honneur (2005-2020)",
                      breaks = seq(0, 50, 10)) +
+  labs(caption = "Source : DILA, base OPENDATA - N. Cohen : https://www.steinertriples.fr/ \nSommes des nominations et promotions sur 20 ans \nTraitements : T. Vroylandt") +
   theme_tvr +
   theme(panel.grid.major.x = element_line(color = "grey80"))
 

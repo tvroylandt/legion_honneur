@@ -47,4 +47,7 @@ vignettes/*.pdf
 # End of https://www.gitignore.io/api/r
 
 # Data before ready to publish
-data/
+data/df_legion_init.rds
+data/legion honneur.xml
+data/utils/
+
