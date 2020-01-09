@@ -664,10 +664,10 @@ reactable(
   columns = list(
     source_date = colDef(name = "Date", format = colFormat(date = TRUE)),
     nom_complet = colDef(name = "Identité", minWidth = 60),
-    sexe = colDef(name = "Sexe"),
+    sexe = colDef(name = "Sexe", minWidth = 10),
     comment = colDef(name = "Commentaire", minWidth = 200),
-    grade = colDef(name = "Grade ou dignité"),
-    nomme_par_r = colDef(name = "Nommé par"),
+    grade = colDef(name = "Grade ou dignité", minWidth = 30),
+    nomme_par_r = colDef(name = "Nommé par", minWidth = 40),
     motif_nomination = colDef(name = "Motif", minWidth = 60)
   ),
   striped = TRUE,
