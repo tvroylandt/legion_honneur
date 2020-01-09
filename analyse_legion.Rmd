@@ -11,7 +11,6 @@ knitr::opts_chunk$set(
 # packages
 library(tidyverse)
 library(lubridate)
-library(here)
 library(htmltools)
 library(reactable)
 library(magick)
@@ -47,7 +46,7 @@ theme_tvr <- theme_minimal(base_line_size = 1) +
 ```
 
 ```{r import}
-df_legion <- read_rds(here("data/df_legion_clean.rds")) %>%
+df_legion <- read_rds("data/df_legion_clean.rds") %>%
   mutate(
     # recodage grade_armee
     grade_armee = fct_recode(
@@ -194,11 +193,11 @@ df_grade <- df_legion %>%
   mutate(
     image = fct_recode(
       grade,
-      "data/utils/legion_chevalier_barette.svg" = "Chevalier",
-      "data/utils/legion_officier_barette.svg" = "Officier",
-      "data/utils/legion_commandeur_barette.svg" = "Commandeur",
-      "data/utils/legion_grand_officier_barette.svg" = "Grand officier",
-      "data/utils/legion_grand_croix_barette.svg" = "Grand'croix"
+      "data/images/legion_chevalier_barette.svg" = "Chevalier",
+      "data/images/legion_officier_barette.svg" = "Officier",
+      "data/images/legion_commandeur_barette.svg" = "Commandeur",
+      "data/images/legion_grand_officier_barette.svg" = "Grand officier",
+      "data/images/legion_grand_croix_barette.svg" = "Grand'croix"
     ),
     part = n / sum(n)
   ) %>%
@@ -212,7 +211,7 @@ reactable(
     image = colDef(
       name = "Barette",
       cell = function(value) {
-        image <- img(src = knitr::image_uri(here(value)),
+        image <- img(src = knitr::image_uri(value),
                      height = "24px")
         tagList(div(style = list(display = "inline-block", width = "80px"), image))
       }
@@ -658,12 +657,12 @@ reactable(
   df_legion_recap,
   columns = list(
     source_date = colDef(name = "Date", format = colFormat(date = TRUE)),
-    nom_complet = colDef(name = "Identité", minWidth = 80),
+    nom_complet = colDef(name = "Identité", minWidth = 60),
     sexe = colDef(name = "Sexe"),
-    comment = colDef(name = "Commentaire", minWidth = 300),
+    comment = colDef(name = "Commentaire", minWidth = 200),
     grade = colDef(name = "Grade ou dignité"),
     nomme_par_r = colDef(name = "Nommé par"),
-    motif_nomination = colDef(name = "Motif", minWidth = 80)
+    motif_nomination = colDef(name = "Motif", minWidth = 60)
   ),
   striped = TRUE,
   borderless = TRUE,

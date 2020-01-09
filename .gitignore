@@ -49,5 +49,4 @@ vignettes/*.pdf
 # Data before ready to publish
 data/df_legion_init.rds
 data/legion honneur.xml
-data/utils/
 
