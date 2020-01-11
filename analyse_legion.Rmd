@@ -213,7 +213,7 @@ df_grade <- df_legion %>%
 reactable(
   df_grade,
   columns = list(
-    grade = colDef(name = "Grade"),
+    grade = colDef(name = "Grade", minWidth = 90),
     image = colDef(
       name = "Barette",
       cell = function(value) {
@@ -418,7 +418,7 @@ Les nominations sont faites par le président de la République, mais sont le pl
 
 Attention car ce ministère est plutôt en perte de vitesse et représente plus de deux fois moins de nomination sur les cinq dernières années qu'il y a 20 ans. Optez dans ce cas pour des ministères qui montent, les affaires étrangères par exemple. Le quai d'Orsay plutôt que Bercy ?
 
-```{r nomme_par_graph, fig.height=6, fig.width=12}
+```{r nomme_par_graph, fig.height=7, fig.width=12}
 # recodage
 df_nomme_par <- df_legion %>%
   filter(ind_militaire == "0" &
