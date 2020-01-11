@@ -301,19 +301,20 @@ detect_nomination <- function(x) {
   case_when(
     str_detect(x, "premier ministre|parlement") ~ "p_ministre",
     str_detect(x, "agriculture|agro") ~ "agriculture",
-    str_detect(x, "écolo|environnement|ecolo|durable") ~ "environnement",
+    str_detect(x, "écolo|environnement|ecolo|durable") ~ "environnement/transports",
+    str_detect(x, "équipement|transport") ~ "environnement/transports",
     str_detect(x, "éducation|enseignement|recherche|éduc") ~ "education",
     str_detect(x, "affaires étrangères|coopération|europ") ~ "aff_etrangeres",
     str_detect(
       x,
       "économie|budget|industrie|entreprise|finance|producti|commerce|tourisme|compte"
     ) ~ "finances",
-    str_detect(x, "fonction publique|réforme") ~ "f_publique",
     str_detect(x, "défense|armée|combattant") ~ "defense",
     str_detect(x, "culture|communication") ~ "culture",
     str_detect(x, "justice") ~ "justice",
     str_detect(x, "intérieur|immigration") ~ "interieur",
     str_detect(x, "travail|emploi|profession") ~ "travail",
+    str_detect(x, "fonction publique|réforme") ~ "f_publique",
     str_detect(
       x,
       "santé|solidarité|famille|femme|égalité|social|exclusion|handicap|âgées|aînés|maladie"
@@ -321,7 +322,6 @@ detect_nomination <- function(x) {
     str_detect(x, "sport|jeunesse|associa") ~ "sport",
     str_detect(x, "outre-mer") ~ "outre-mer",
     str_detect(x, "ville|logement|territo|centralisation") ~ "lgmt_terr",
-    str_detect(x, "équipement|transport") ~ "transports",
     str_detect(x, "chancellerie de la légion d'honneur") ~ "legion_honneur"
   )
 }
@@ -349,7 +349,7 @@ df_legion_2 <- df_legion_1 %>%
       detect_nomination(text3),
       nomme_par_r
     )
-  ) %>%
+  ) %>% 
   select(-nomme_par)
 ```
 
@@ -615,8 +615,7 @@ df_legion_7 <- df_legion_6 %>%
         "Autrichienne",
         "Finlandaise",
         "Luxembourgeoise",
-        "Polonaise",
-        "Irlandaise"
+        "Polonaise"
       ),
       "Asiatiques" = c(
         "Chinoise",

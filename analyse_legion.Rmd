@@ -84,7 +84,7 @@ df_legion <- read_rds("data/df_legion_clean.rds") %>%
       "Justice" = "justice",
       "Éducation et recherche" = "education",
       "Santé et solidarités" = "sante_social",
-      "Environnement" = "environnement",
+      "Environnement et transports" = "environnement/transports",
       "Culture" = "culture",
       "Chancellerie de la Légion d'Honneur" = "legion_honneur",
       "Défense" = "defense",
@@ -437,6 +437,7 @@ df_nomme_par <- df_legion %>%
   pivot_wider(values_from = part, names_from = an_5) %>%
   mutate(nomme_par_r = fct_reorder(nomme_par_r, `2015-2020`))
 
+
 # graph
 df_nomme_par %>%
   ggplot(aes(
@@ -447,21 +448,45 @@ df_nomme_par %>%
   )) +
   ggalt::geom_dumbbell(
     size = 4,
+    size_x = 6,
+    size_xend = 6,
     dot_guide = TRUE,
     dot_guide_size = 0.5,
-    color = "#b52a31",
+    colour_x = "#b52a31",
     colour_xend = "#460184",
-    alpha = 0.8
+    alpha = 0.8,
+    color = "grey70"
+  ) +
+  geom_text(
+    data = filter(df_nomme_par, nomme_par_r == "Affaires étrangères"),
+    aes(x = `2000-2005`),
+    label = "2000-2005",
+    vjust = -1.5,
+    family = "ubuntu",
+    color = "#b52a31",
+    fontface = "bold",
+    size = 5
+  ) +
+  geom_text(
+    data = filter(df_nomme_par, nomme_par_r == "Affaires étrangères"),
+    aes(x = `2015-2020`),
+    label = "2015-2020",
+    vjust = -1.5,
+    family = "ubuntu",
+    color = "#460184",
+    fontface = "bold",
+    size = 5
   ) +
   scale_x_continuous(name = "Part des décorations, en %",
                      breaks = seq(0, 22, 2)) +
   scale_y_discrete(
     name = "",
     labels = function(x)
-      str_wrap(x, width = 20)
+      str_wrap(x, width = 20),
+    expand = c(0, 2)
   ) +
   theme_tvr +
-labs(caption = "Source : DILA, base OPENDATA - N. Cohen : https://www.steinertriples.fr/ \nParts 2000-2005 en rouge VS part 2015-2020 en violet \nTraitements : T. Vroylandt") +
+  labs(caption = "Source : DILA, base OPENDATA - N. Cohen : https://www.steinertriples.fr/ \nParts 2000-2005 en rouge VS part 2015-2020 en violet \nTraitements : T. Vroylandt") +
   theme(panel.grid.major.x = element_line(color = "grey80"))
 ```
 
@@ -565,8 +590,9 @@ df_nationalite <- df_legion %>%
       nationalite == "Suisse" ~ as.character(ji("switzerland")),
       nationalite == "Britannique" ~ as.character(ji("uk")),
       nationalite == "Néerlandaise" ~ as.character(ji("netherlands")),
+      nationalite == "Irlandaise" ~ as.character(ji("ireland")),
       nationalite == "Autres européennes" ~ paste0(
-        as.character(ji("ireland")),
+        as.character(ji("greece")),
         as.character(ji("poland")),
         as.character(ji("sweden"))
       ),
@@ -593,7 +619,7 @@ df_nationalite <- df_legion %>%
         as.character(ji("brazil"))
       )
     ),
-    nb_flag = case_when(nationalite %in% c("Belge", "Allemande", "Italienne", "Espagnole", "Américaine", "Suisse", "Britannique", "Néerlandaise") ~ 1,
+    nb_flag = case_when(nationalite %in% c("Belge", "Allemande", "Italienne", "Espagnole", "Américaine", "Suisse", "Britannique", "Néerlandaise", "Irlandaise") ~ 1,
                         nationalite %in% c("Asiatiques") ~ 2,
                         TRUE ~ 3)
   ) %>%
@@ -662,12 +688,12 @@ df_legion_recap <- df_legion %>%
 reactable(
   df_legion_recap,
   columns = list(
-    source_date = colDef(name = "Date", format = colFormat(date = TRUE)),
-    nom_complet = colDef(name = "Identité", minWidth = 40),
+    source_date = colDef(name = "Date", format = colFormat(date = TRUE), minWidth = 40),
+    nom_complet = colDef(name = "Identité", minWidth = 50),
     sexe = colDef(name = "Sexe", minWidth = 10),
-    comment = colDef(name = "Commentaire", minWidth = 150),
+    comment = colDef(name = "Commentaire", minWidth = 200),
     grade = colDef(name = "Grade ou dignité", minWidth = 30),
-    nomme_par_r = colDef(name = "Nommé par", minWidth = 30),
+    nomme_par_r = colDef(name = "Nommé par", minWidth = 50),
     motif_nomination = colDef(name = "Motif", minWidth = 50)
   ),
   striped = TRUE,
