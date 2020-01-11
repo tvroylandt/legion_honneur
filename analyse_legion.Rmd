@@ -416,9 +416,9 @@ df_legion %>%
 
 Les nominations sont faites par le président de la République, mais sont le plus souvent demandées par un ministère. Tous ne sont pas égaux. Le plus gros contingent est de loin celui des ministère économiques et financier.
 
-Attention car ce ministère est plutôt en perte de vitesse et représente plus de deux fois moins de nomination sur les cinq dernières années qu'il y a 20 ans. Optez dans ce cas pour des ministères qui montent, les affaires étrangères par exemple. Le quai d'Orsay plutôt que Bercy ?
+Attention car ce ministère est plutôt en perte de vitesse et représente deux fois moins de nomination sur les cinq dernières années qu'il y a 20 ans. Optez dans ce cas pour des ministères qui montent, les affaires étrangères par exemple. Le quai d'Orsay plutôt que Bercy ?
 
-```{r nomme_par_graph, fig.height=7, fig.width=12}
+```{r nomme_par_graph, fig.height=8, fig.width=12}
 # recodage
 df_nomme_par <- df_legion %>%
   filter(ind_militaire == "0" &
