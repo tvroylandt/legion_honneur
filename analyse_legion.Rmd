@@ -25,11 +25,12 @@ col_grade <- c(
       "Grand'croix" = "#e2b24c"
     )
 
+
 # theme
 theme_tvr <- theme_minimal(base_line_size = 1) +
   theme(
     legend.position = "top",
-    text = element_text(family = "ubuntu", size = 13),
+    text = element_text(family = "Lato", size = 13),
     axis.text = element_text(size = 13),
     axis.text.x = element_text(vjust = -0.1,
                                angle = -30),
@@ -39,7 +40,7 @@ theme_tvr <- theme_minimal(base_line_size = 1) +
     panel.grid.major.y = element_blank(),
     plot.caption = element_text(hjust = 0,
                                 size = 10,
-                                family = "mono",
+                                family = "Lato",
                                 color = "grey40"),
     legend.text = element_text(size = 13)
   )
@@ -176,7 +177,6 @@ df_legion %>%
     arrow = arrow(length = unit(0.01, "npc"), type = "open")
   ) +
   labs(caption = "Source : DILA, base OPENDATA - N. Cohen : https://www.steinertriples.fr/ \nSommes des nominations et promotions sur 20 ans \nTraitements : T. Vroylandt") +
-  theme_tvr +
   theme(axis.text.x = element_text(vjust = -1,
                                    angle = -30),
         panel.grid.major.y = element_line(color = "grey80"))
@@ -495,7 +495,7 @@ df_nomme_par %>%
 ```{r particule_stats, include=FALSE}
 # total
 part_particule_tot <- df_legion %>% 
-  mutate(particule = str_detect(nom_complet, " de | d'| des ")) %>% 
+  mutate(particule = str_detect(str_to_lower(nom_complet), "\\b(du|d|de|des|de|d')\\b")) %>% 
   group_by(particule) %>% 
   count() %>% 
   ungroup() %>% 
@@ -506,7 +506,7 @@ part_particule_tot <- df_legion %>%
 
 # par grade
 df_particule_grade <- df_legion %>% 
-  mutate(particule = str_detect(nom_complet, " de | d'| des ")) %>% 
+  mutate(particule = str_detect(nom_complet, "\\b(du|d|de|des|de|d')\\b")) %>% 
   group_by(grade, particule) %>% 
   count() %>% 
   group_by(grade) %>% 
