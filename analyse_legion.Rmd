@@ -177,6 +177,7 @@ df_legion %>%
     arrow = arrow(length = unit(0.01, "npc"), type = "open")
   ) +
   labs(caption = "Source : DILA, base OPENDATA - N. Cohen : https://www.steinertriples.fr/ \nSommes des nominations et promotions sur 20 ans \nTraitements : T. Vroylandt") +
+  theme_tvr +
   theme(axis.text.x = element_text(vjust = -1,
                                    angle = -30),
         panel.grid.major.y = element_line(color = "grey80"))
